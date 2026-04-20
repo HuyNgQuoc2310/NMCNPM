@@ -1,39 +1,74 @@
 import React from "react";
-import MenuManager from "./components/MenuManager";
-import TableManager from "./components/TableManager";
+import { Navigate, Route, Routes } from "react-router-dom";
+import AppShell from "./components/AppShell";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { useAuth } from "./context/useAuth";
+import CustomersPage from "./pages/CustomersPage";
+import DashboardPage from "./pages/DashboardPage";
+import EmployeesPage from "./pages/EmployeesPage";
+import ForbiddenPage from "./pages/ForbiddenPage";
+import LoginPage from "./pages/LoginPage";
+import MenuPage from "./pages/MenuPage";
+import PaymentsPage from "./pages/PaymentsPage";
+import ReservationsPage from "./pages/ReservationsPage";
+import SessionsPage from "./pages/SessionsPage";
+import TablesPage from "./pages/TablesPage";
+
+function ProtectedLayout() {
+  return (
+    <ProtectedRoute>
+      <AppShell />
+    </ProtectedRoute>
+  );
+}
+
+function AdminOnlyRoute() {
+  return <ProtectedRoute roles={["admin"]} />;
+}
+
+function PublicOnlyLogin() {
+  const { isAuthenticated, isInitializing } = useAuth();
+
+  if (isInitializing) {
+    return <div className="screen-state">Dang tai phien dang nhap...</div>;
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <LoginPage />;
+}
 
 function App() {
   return (
-    <div className="d-flex">
-      {/* Sidebar */}
-      <div
-        className="bg-dark text-white p-4"
-        style={{ width: "260px", minHeight: "100vh" }}
-      >
-        <h3 className="text-center mb-4">Restaurant</h3>
+    <Routes>
+      <Route path="/login" element={<PublicOnlyLogin />} />
+      <Route
+        path="/forbidden"
+        element={
+          <ProtectedRoute>
+            <ForbiddenPage />
+          </ProtectedRoute>
+        }
+      />
 
-        <ul className="nav flex-column">
-          <li className="nav-link text-white">🍽 Quản lý món ăn</li>
-          <li className="nav-link text-white">🪑 Quản lý bàn ăn</li>
-          <li className="nav-link text-white">👤 Khách hàng</li>
-          <li className="nav-link text-white">📅 Đặt bàn</li>
-          <li className="nav-link text-white">💰 Thanh toán</li>
-        </ul>
-      </div>
+      <Route element={<ProtectedLayout />}>
+        <Route index element={<DashboardPage />} />
+        <Route path="/menu" element={<MenuPage />} />
+        <Route path="/tables" element={<TablesPage />} />
+        <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/reservations" element={<ReservationsPage />} />
+        <Route path="/sessions" element={<SessionsPage />} />
+        <Route path="/payments" element={<PaymentsPage />} />
 
-      {/* Main content */}
-      <div className="flex-grow-1 bg-light p-4">
-        <h2 className="mb-4">Hệ thống quản lý nhà hàng</h2>
+        <Route element={<AdminOnlyRoute />}>
+          <Route path="/employees" element={<EmployeesPage />} />
+        </Route>
+      </Route>
 
-        <div className="card shadow rounded-4 p-4 mb-4">
-          <MenuManager />
-        </div>
-
-        <div className="card shadow rounded-4 p-4">
-          <TableManager />
-        </div>
-      </div>
-    </div>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 

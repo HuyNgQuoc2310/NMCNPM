@@ -1,47 +1,181 @@
 const db = require("../config/db");
+const generateCode = require("../utils/generateCode");
+const handleDbError = require("../utils/handleDbError");
+const parseBoolean = require("../utils/parseBoolean");
 
-exports.getAllTables = (req, res) => {
-    db.query("SELECT * FROM tables", (err, result) => {
-        if (err) return res.status(500).json(err);
-        res.json(result);
-    });
+const allowedStatuses = ["available", "reserved", "occupied", "unavailable"];
+
+function normalizeTablePayload(body = {}) {
+  return {
+    tableCode: String(body.table_code || "").trim(),
+    tableName: String(body.table_name || "").trim(),
+    description: String(body.description || "").trim() || null,
+    capacity: Number(body.capacity),
+    status: String(body.status || "available").trim().toLowerCase(),
+    isActive: parseBoolean(body.is_active, true) ? 1 : 0
+  };
+}
+
+exports.getAllTables = async (req, res) => {
+  try {
+    const { keyword = "", status = "" } = req.query;
+    const conditions = [];
+    const params = [];
+
+    if (keyword.trim()) {
+      const likeKeyword = `%${keyword.trim()}%`;
+      conditions.push("(table_code LIKE ? OR table_name LIKE ? OR description LIKE ?)");
+      params.push(likeKeyword, likeKeyword, likeKeyword);
+    }
+
+    if (status.trim()) {
+      conditions.push("status = ?");
+      params.push(status.trim().toLowerCase());
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const [rows] = await db.query(
+      `
+        SELECT table_id, table_code, table_name, capacity, description, status,
+               is_active, created_at, updated_at
+        FROM tables
+        ${whereClause}
+        ORDER BY table_name ASC
+      `,
+      params
+    );
+
+    res.json(rows);
+  } catch (error) {
+    handleDbError(res, error);
+  }
 };
 
-exports.addTable = (req, res) => {
-    const { table_name, capacity, description } = req.body;
+exports.getTableById = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `
+        SELECT table_id, table_code, table_name, capacity, description, status,
+               is_active, created_at, updated_at
+        FROM tables
+        WHERE table_id = ?
+      `,
+      [req.params.id]
+    );
 
-    const sql = `
-        INSERT INTO tables(table_name, capacity, description)
-        VALUES (?, ?, ?)
-    `;
+    if (!rows.length) {
+      return res.status(404).json({ message: "Khong tim thay ban." });
+    }
 
-    db.query(sql, [table_name, capacity, description], (err) => {
-        if (err) return res.status(500).json(err);
-        res.json({ message: "Thêm bàn thành công" });
-    });
+    res.json(rows[0]);
+  } catch (error) {
+    handleDbError(res, error);
+  }
 };
 
-exports.updateTable = (req, res) => {
-    const { id } = req.params;
-    const { table_name, capacity, description } = req.body;
+exports.addTable = async (req, res) => {
+  const payload = normalizeTablePayload(req.body);
 
-    const sql = `
+  if (!payload.tableName) {
+    return res.status(400).json({ message: "Ten ban la bat buoc." });
+  }
+
+  if (!Number.isInteger(payload.capacity) || payload.capacity <= 0) {
+    return res.status(400).json({ message: "Suc chua ban phai lon hon 0." });
+  }
+
+  if (!allowedStatuses.includes(payload.status)) {
+    return res.status(400).json({ message: "Trang thai ban khong hop le." });
+  }
+
+  try {
+    const tableCode = payload.tableCode || generateCode("B");
+    const [result] = await db.query(
+      `
+        INSERT INTO tables (
+          table_code, table_name, capacity, description, status, is_active
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      [
+        tableCode,
+        payload.tableName,
+        payload.capacity,
+        payload.description,
+        payload.status,
+        payload.isActive
+      ]
+    );
+
+    res.status(201).json({
+      message: "Them ban thanh cong.",
+      tableId: result.insertId,
+      tableCode
+    });
+  } catch (error) {
+    handleDbError(res, error, {
+      duplicate: "Ma ban da ton tai."
+    });
+  }
+};
+
+exports.updateTable = async (req, res) => {
+  const payload = normalizeTablePayload(req.body);
+
+  if (!payload.tableName) {
+    return res.status(400).json({ message: "Ten ban la bat buoc." });
+  }
+
+  if (!Number.isInteger(payload.capacity) || payload.capacity <= 0) {
+    return res.status(400).json({ message: "Suc chua ban phai lon hon 0." });
+  }
+
+  if (!allowedStatuses.includes(payload.status)) {
+    return res.status(400).json({ message: "Trang thai ban khong hop le." });
+  }
+
+  try {
+    const [result] = await db.query(
+      `
         UPDATE tables
-        SET table_name=?, capacity=?, description=?
-        WHERE table_id=?
-    `;
+        SET table_name = ?, capacity = ?, description = ?, status = ?, is_active = ?
+        WHERE table_id = ?
+      `,
+      [
+        payload.tableName,
+        payload.capacity,
+        payload.description,
+        payload.status,
+        payload.isActive,
+        req.params.id
+      ]
+    );
 
-    db.query(sql, [table_name, capacity, description, id], (err) => {
-        if (err) return res.status(500).json(err);
-        res.json({ message: "Cập nhật bàn thành công" });
-    });
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: "Khong tim thay ban de cap nhat." });
+    }
+
+    res.json({ message: "Cap nhat ban thanh cong." });
+  } catch (error) {
+    handleDbError(res, error);
+  }
 };
 
-exports.deleteTable = (req, res) => {
-    const { id } = req.params;
+exports.deleteTable = async (req, res) => {
+  try {
+    const [result] = await db.query(
+      "DELETE FROM tables WHERE table_id = ?",
+      [req.params.id]
+    );
 
-    db.query("DELETE FROM tables WHERE table_id=?", [id], (err) => {
-        if (err) return res.status(500).json(err);
-        res.json({ message: "Xóa bàn thành công" });
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: "Khong tim thay ban de xoa." });
+    }
+
+    res.json({ message: "Xoa ban thanh cong." });
+  } catch (error) {
+    handleDbError(res, error, {
+      referenced: "Ban dang duoc su dung trong dat ban hoac phien phuc vu, khong the xoa."
     });
+  }
 };
