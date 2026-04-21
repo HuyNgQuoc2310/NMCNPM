@@ -37,7 +37,7 @@ exports.getOrderById = async (req, res) => {
   try {
     const order = await getOrderDetails(db, req.params.id);
     if (!order) {
-      return res.status(404).json({ message: "Khong tim thay order." });
+      return res.status(404).json({ message: "Không tìm thấy order." });
     }
 
     res.json(order);
@@ -50,7 +50,7 @@ exports.getOrderBySession = async (req, res) => {
   const sessionId = Number(req.params.sessionId);
 
   if (!Number.isInteger(sessionId) || sessionId <= 0) {
-    return res.status(400).json({ message: "Ma phien phuc vu khong hop le." });
+    return res.status(400).json({ message: "Mã phiên phục vụ không hợp lệ." });
   }
 
   try {
@@ -67,7 +67,7 @@ exports.getOrderBySession = async (req, res) => {
     );
 
     if (!rows.length) {
-      return res.status(404).json({ message: "Phien phuc vu chua co order dang mo." });
+      return res.status(404).json({ message: "Phiên phục vụ chưa có order đang mở." });
     }
 
     const order = await getOrderDetails(db, rows[0].order_id);
@@ -85,22 +85,22 @@ exports.createOrder = async (req, res) => {
 
   if (!Number.isInteger(sessionId) || sessionId <= 0) {
     connection.release();
-    return res.status(400).json({ message: "Ma phien phuc vu khong hop le." });
+    return res.status(400).json({ message: "Mã phiên phục vụ không hợp lệ." });
   }
 
   if (employeeId !== null && (!Number.isInteger(employeeId) || employeeId <= 0)) {
     connection.release();
-    return res.status(400).json({ message: "Nhan vien khong hop le." });
+    return res.status(400).json({ message: "Nhân viên không hợp lệ." });
   }
 
   try {
     const session = await getOpenSession(connection, sessionId);
     if (!session) {
-      return res.status(404).json({ message: "Khong tim thay phien phuc vu." });
+      return res.status(404).json({ message: "Không tìm thấy phiên phục vụ." });
     }
 
     if (session.status !== "open") {
-      return res.status(400).json({ message: "Phien phuc vu da dong, khong the tao order." });
+      return res.status(400).json({ message: "Phiên phục vụ đã đóng, không thể tạo order." });
     }
 
     const [existingOrders] = await connection.query(
@@ -118,7 +118,7 @@ exports.createOrder = async (req, res) => {
     if (existingOrders.length) {
       const order = await getOrderDetails(connection, existingOrders[0].order_id);
       return res.status(200).json({
-        message: "Phien phuc vu da co order dang mo.",
+        message: "Phiên phục vụ đã có order đang mở.",
         order
       });
     }
@@ -137,12 +137,12 @@ exports.createOrder = async (req, res) => {
     const order = await getOrderDetails(connection, result.insertId);
 
     res.status(201).json({
-      message: "Tao order thanh cong.",
+      message: "Tạo order thành công.",
       order
     });
   } catch (error) {
     handleDbError(res, error, {
-      foreignKey: "Nhan vien hoac phien phuc vu khong hop le."
+      foreignKey: "Nhân viên hoặc phiên phục vụ không hợp lệ."
     });
   } finally {
     connection.release();
@@ -158,32 +158,32 @@ exports.addOrderItem = async (req, res) => {
 
   if (!Number.isInteger(orderId) || orderId <= 0) {
     connection.release();
-    return res.status(400).json({ message: "Ma order khong hop le." });
+    return res.status(400).json({ message: "Mã order không hợp lệ." });
   }
 
   if (!Number.isInteger(itemId) || itemId <= 0) {
     connection.release();
-    return res.status(400).json({ message: "Mon an khong hop le." });
+    return res.status(400).json({ message: "Món ăn không hợp lệ." });
   }
 
   if (!Number.isInteger(quantity) || quantity <= 0) {
     connection.release();
-    return res.status(400).json({ message: "So luong mon phai lon hon 0." });
+    return res.status(400).json({ message: "Số lượng món phải lớn hơn 0." });
   }
 
   try {
     const order = await getOrderRecord(connection, orderId);
     if (!order) {
-      return res.status(404).json({ message: "Khong tim thay order." });
+      return res.status(404).json({ message: "Không tìm thấy order." });
     }
 
     if (order.status !== "open") {
-      return res.status(400).json({ message: "Chi co the them mon vao order dang mo." });
+      return res.status(400).json({ message: "Chỉ có thể thêm món vào order đang mở." });
     }
 
     const session = await getOpenSession(connection, order.session_id);
     if (!session || session.status !== "open") {
-      return res.status(400).json({ message: "Phien phuc vu da dong, khong the goi mon." });
+      return res.status(400).json({ message: "Phiên phục vụ đã đóng, không thể gọi món." });
     }
 
     const [menuRows] = await connection.query(
@@ -196,12 +196,12 @@ exports.addOrderItem = async (req, res) => {
     );
 
     if (!menuRows.length) {
-      return res.status(404).json({ message: "Khong tim thay mon an." });
+      return res.status(404).json({ message: "Không tìm thấy món ăn." });
     }
 
     const menuItem = menuRows[0];
     if (!menuItem.is_available) {
-      return res.status(400).json({ message: "Mon an nay tam thoi khong phuc vu." });
+      return res.status(400).json({ message: "Món ăn này tạm thời không phục vụ." });
     }
 
     await connection.beginTransaction();
@@ -260,13 +260,13 @@ exports.addOrderItem = async (req, res) => {
 
     const orderDetails = await getOrderDetails(connection, orderId);
     res.status(201).json({
-      message: "Them mon vao order thanh cong.",
+      message: "Thêm món vào order thành công.",
       order: orderDetails
     });
   } catch (error) {
     await connection.rollback();
     handleDbError(res, error, {
-      foreignKey: "Order hoac mon an khong hop le."
+      foreignKey: "Order hoặc món ăn không hợp lệ."
     });
   } finally {
     connection.release();
@@ -282,22 +282,22 @@ exports.updateOrderItem = async (req, res) => {
 
   if (!Number.isInteger(orderId) || orderId <= 0 || !Number.isInteger(orderItemId) || orderItemId <= 0) {
     connection.release();
-    return res.status(400).json({ message: "Thong tin order item khong hop le." });
+    return res.status(400).json({ message: "Thông tin order item không hợp lệ." });
   }
 
   if (!Number.isInteger(quantity) || quantity <= 0) {
     connection.release();
-    return res.status(400).json({ message: "So luong mon phai lon hon 0." });
+    return res.status(400).json({ message: "Số lượng món phải lớn hơn 0." });
   }
 
   try {
     const order = await getOrderRecord(connection, orderId);
     if (!order) {
-      return res.status(404).json({ message: "Khong tim thay order." });
+      return res.status(404).json({ message: "Không tìm thấy order." });
     }
 
     if (order.status !== "open") {
-      return res.status(400).json({ message: "Chi co the sua mon trong order dang mo." });
+      return res.status(400).json({ message: "Chỉ có thể sửa món trong order đang mở." });
     }
 
     const [orderItemRows] = await connection.query(
@@ -312,7 +312,7 @@ exports.updateOrderItem = async (req, res) => {
     );
 
     if (!orderItemRows.length) {
-      return res.status(404).json({ message: "Khong tim thay mon trong order." });
+      return res.status(404).json({ message: "Không tìm thấy món trong order." });
     }
 
     const orderItem = orderItemRows[0];
@@ -338,7 +338,7 @@ exports.updateOrderItem = async (req, res) => {
 
     const orderDetails = await getOrderDetails(connection, orderId);
     res.json({
-      message: "Cap nhat mon trong order thanh cong.",
+      message: "Cập nhật món trong order thành công.",
       order: orderDetails
     });
   } catch (error) {
@@ -356,17 +356,17 @@ exports.deleteOrderItem = async (req, res) => {
 
   if (!Number.isInteger(orderId) || orderId <= 0 || !Number.isInteger(orderItemId) || orderItemId <= 0) {
     connection.release();
-    return res.status(400).json({ message: "Thong tin order item khong hop le." });
+    return res.status(400).json({ message: "Thông tin order item không hợp lệ." });
   }
 
   try {
     const order = await getOrderRecord(connection, orderId);
     if (!order) {
-      return res.status(404).json({ message: "Khong tim thay order." });
+      return res.status(404).json({ message: "Không tìm thấy order." });
     }
 
     if (order.status !== "open") {
-      return res.status(400).json({ message: "Chi co the xoa mon trong order dang mo." });
+      return res.status(400).json({ message: "Chỉ có thể xóa món trong order đang mở." });
     }
 
     const [result] = await connection.query(
@@ -379,14 +379,14 @@ exports.deleteOrderItem = async (req, res) => {
     );
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: "Khong tim thay mon trong order de xoa." });
+      return res.status(404).json({ message: "Không tìm thấy món trong order để xóa." });
     }
 
     await recalculateOrderTotal(connection, orderId);
     const orderDetails = await getOrderDetails(connection, orderId);
 
     res.json({
-      message: "Xoa mon khoi order thanh cong.",
+      message: "Xóa món khỏi order thành công.",
       order: orderDetails
     });
   } catch (error) {

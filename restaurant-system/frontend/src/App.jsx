@@ -10,6 +10,7 @@ import ForbiddenPage from "./pages/ForbiddenPage";
 import LoginPage from "./pages/LoginPage";
 import MenuPage from "./pages/MenuPage";
 import PaymentsPage from "./pages/PaymentsPage";
+import ReportsPage from "./pages/ReportsPage";
 import ReservationsPage from "./pages/ReservationsPage";
 import SessionsPage from "./pages/SessionsPage";
 import TablesPage from "./pages/TablesPage";
@@ -30,7 +31,7 @@ function PublicOnlyLogin() {
   const { isAuthenticated, isInitializing } = useAuth();
 
   if (isInitializing) {
-    return <div className="screen-state">Dang tai phien dang nhap...</div>;
+    return <div className="screen-state">Đang tải phiên đăng nhập...</div>;
   }
 
   if (isAuthenticated) {
@@ -64,6 +65,7 @@ function App() {
 
         <Route element={<AdminOnlyRoute />}>
           <Route path="/employees" element={<EmployeesPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
         </Route>
       </Route>
 

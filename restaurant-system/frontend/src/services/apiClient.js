@@ -20,7 +20,7 @@ export async function apiFetch(path, options = {}) {
 
   if (!response.ok) {
     const error = new Error(
-      typeof payload === "string" ? payload || "Yeu cau that bai." : payload?.message || "Yeu cau that bai."
+      typeof payload === "string" ? payload || "Yêu cầu thất bại." : payload?.message || "Yêu cầu thất bại."
     );
     error.status = response.status;
     error.payload = payload;

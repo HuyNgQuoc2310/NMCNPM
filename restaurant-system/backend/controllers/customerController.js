@@ -75,7 +75,7 @@ exports.addCustomer = async (req, res) => {
   const payload = normalizeCustomerPayload(req.body);
 
   if (!payload.fullName || !payload.phoneNumber) {
-    return res.status(400).json({ message: "Ten va so dien thoai khach hang la bat buoc." });
+    return res.status(400).json({ message: "Tên và số điện thoại khách hàng là bắt buộc." });
   }
 
   try {
@@ -98,13 +98,13 @@ exports.addCustomer = async (req, res) => {
     );
 
     res.status(201).json({
-      message: "Them khach hang thanh cong.",
+      message: "Thêm khách hàng thành công.",
       customerId: result.insertId,
       customerCode
     });
   } catch (error) {
     handleDbError(res, error, {
-      duplicate: "Ma khach hang hoac so dien thoai da ton tai."
+      duplicate: "Mã khách hàng hoặc số điện thoại đã tồn tại."
     });
   }
 };
@@ -113,7 +113,7 @@ exports.updateCustomer = async (req, res) => {
   const payload = normalizeCustomerPayload(req.body);
 
   if (!payload.fullName || !payload.phoneNumber) {
-    return res.status(400).json({ message: "Ten va so dien thoai khach hang la bat buoc." });
+    return res.status(400).json({ message: "Tên và số điện thoại khách hàng là bắt buộc." });
   }
 
   try {
@@ -134,13 +134,13 @@ exports.updateCustomer = async (req, res) => {
     );
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: "Khong tim thay khach hang de cap nhat." });
+      return res.status(404).json({ message: "Không tìm thấy khách hàng để cập nhật." });
     }
 
-    res.json({ message: "Cap nhat khach hang thanh cong." });
+    res.json({ message: "Cập nhật khách hàng thành công." });
   } catch (error) {
     handleDbError(res, error, {
-      duplicate: "So dien thoai khach hang da ton tai."
+      duplicate: "Số điện thoại khách hàng đã tồn tại."
     });
   }
 };
@@ -153,13 +153,13 @@ exports.deleteCustomer = async (req, res) => {
     );
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: "Khong tim thay khach hang de xoa." });
+      return res.status(404).json({ message: "Không tìm thấy khách hàng để xóa." });
     }
 
-    res.json({ message: "Xoa khach hang thanh cong." });
+    res.json({ message: "Xóa khách hàng thành công." });
   } catch (error) {
     handleDbError(res, error, {
-      referenced: "Khach hang dang co dat ban, khong the xoa."
+      referenced: "Khách hàng đang có đặt bàn, không thể xóa."
     });
   }
 };

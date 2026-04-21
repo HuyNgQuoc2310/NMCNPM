@@ -30,7 +30,7 @@ const navigationItems = [
   {
     to: "/reservations",
     label: "Đặt bàn",
-    description: "ìm bàn trong và tiếp nhận phiếu đặt.",
+    description: "Tìm bàn trống và tiếp nhận phiếu đặt.",
     roles: ["admin", "staff"]
   },
   {
@@ -42,8 +42,14 @@ const navigationItems = [
   {
     to: "/payments",
     label: "Thanh toán",
-    description: "Thu tiền va đóng bàn.",
+    description: "Thu tiền và đóng bàn.",
     roles: ["admin", "staff"]
+  },
+  {
+    to: "/reports",
+    label: "Báo cáo",
+    description: "Thống kê món ăn, khung giờ và doanh thu.",
+    roles: ["admin"]
   },
   {
     to: "/employees",
@@ -64,9 +70,9 @@ function AppShell() {
       <aside className="app-sidebar">
         <div className="sidebar-brand">
           <span className="eyebrow">Restaurant System</span>
-          <h1>Nha hang Pho Ban</h1>
+          <h1>Nhà hàng Phố Bàn</h1>
           <p>
-            Giao dien da noi voi login, token va role. Staff thay menu phuc vu, admin thay them khu quan tri.
+            Giao diện đã nối với login, token và role. Staff thấy menu phục vụ, admin thấy thêm khu quản trị.
           </p>
         </div>
 
@@ -88,14 +94,14 @@ function AppShell() {
       <main className="app-content">
         <header className="topbar">
           <div>
-            <h2>{currentItem?.label || "He thong quan ly nha hang"}</h2>
-            <p>Dang dang nhap voi tai khoan {user?.username}. Menu va route hien tai dang phan theo role.</p>
+            <h2>{currentItem?.label || "Hệ thống quản lý nhà hàng"}</h2>
+            <p>Đang đăng nhập với tài khoản {user?.username}. Menu và route hiện tại đang phân theo role.</p>
           </div>
 
           <div className="topbar-actions">
             <span className="role-badge">{user?.role}</span>
             <button type="button" className="ghost-button" onClick={logout}>
-              Dang xuat
+              Đăng xuất
             </button>
           </div>
         </header>

@@ -335,7 +335,7 @@ function EmployeeManager() {
                 onChange={handleFilterChange}
               />
               <div className="table-subtext">
-                {isDebouncingKeyword ? "Đang cập nhật bộ lọc..." : "ìm kiếm tự động sau 0.4 giây khi dừng gõ."}
+                {isDebouncingKeyword ? "Đang cập nhật bộ lọc..." : "Tìm kiếm tự động sau 0.4 giây khi dừng gõ."}
               </div>
             </div>
 
@@ -431,7 +431,7 @@ function EmployeeManager() {
             </div>
 
             <div className="micro-stat">
-              <span>Dang hoat dong</span>
+              <span>Đang hoạt động</span>
               <strong>{activeCount}</strong>
             </div>
           </div>
@@ -504,7 +504,7 @@ function EmployeeManager() {
                         </td>
                         <td className="action-cell">
                           <button type="button" className="ghost-button button-sm" onClick={() => startEditing(employee)}>
-                            Sua
+                            Sửa
                           </button>
                           <button
                             type="button"
@@ -560,8 +560,8 @@ function EmployeeManager() {
 
       {isFormModalOpen ? (
         <ModalShell
-          title={editingEmployeeId ? "Cap nhat nhan vien" : "Tao tai khoan nhan vien"}
-          description="Neu dang sua, bo trong password de giu nguyen mat khau hien tai."
+          title={editingEmployeeId ? "Cập nhật nhân viên" : "Tạo tài khoản nhân viên"}
+          description="Nếu đang sửa, bỏ trống password để giữ nguyên mật khẩu hiện tại."
           onClose={closeFormModal}
           size="wide"
           footer={

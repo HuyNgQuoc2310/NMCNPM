@@ -50,17 +50,17 @@ exports.login = async (req, res) => {
     );
 
     if (!rows.length) {
-      return res.status(401).json({ message: "Sai username hoac password." });
+      return res.status(401).json({ message: "Sai username hoặc password." });
     }
 
     const employee = rows[0];
     if (!employee.is_active) {
-      return res.status(403).json({ message: "Tai khoan da bi khoa." });
+      return res.status(403).json({ message: "Tài khoản đã bị khóa." });
     }
 
     const isPasswordValid = await bcrypt.compare(password, employee.password_hash);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: "Sai username hoac password." });
+      return res.status(401).json({ message: "Sai username hoặc password." });
     }
 
     const token = jwt.sign(
@@ -76,7 +76,7 @@ exports.login = async (req, res) => {
     );
 
     return res.json({
-      message: "Dang nhap thanh cong.",
+      message: "Đăng nhập thành công.",
       token,
       token_type: "Bearer",
       user: buildAuthUser(employee)
@@ -109,7 +109,7 @@ exports.getMe = async (req, res) => {
     );
 
     if (!rows.length) {
-      return res.status(404).json({ message: "Khong tim thay tai khoan dang nhap." });
+      return res.status(404).json({ message: "Không tìm thấy tài khoản đang đăng nhập." });
     }
 
     return res.json(buildAuthUser(rows[0]));

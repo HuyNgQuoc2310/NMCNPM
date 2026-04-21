@@ -1,7 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiFetch } from "../services/apiClient";
 import { formatCurrency } from "../utils/formatters";
+
+const pageSizeOptions = [4, 8, 12];
+
+function compareText(valueA = "", valueB = "") {
+  return valueA.localeCompare(valueB, "vi", { sensitivity: "base" });
+}
 
 function SessionsPage() {
   const { logout, token, user } = useAuth();
@@ -20,6 +26,9 @@ function SessionsPage() {
   const [addingItem, setAddingItem] = useState(false);
   const [processingItemId, setProcessingItemId] = useState(null);
   const [menuFilter, setMenuFilter] = useState("");
+  const [sessionSortBy, setSessionSortBy] = useState("latest");
+  const [sessionPageSize, setSessionPageSize] = useState(4);
+  const [sessionPage, setSessionPage] = useState(1);
 
   const [walkInForm, setWalkInForm] = useState({
     guest_count: "2",
@@ -33,16 +42,16 @@ function SessionsPage() {
     notes: ""
   });
 
-  function handleAuthError(error) {
+  const handleAuthError = useCallback((error) => {
     if (error.status === 401) {
       logout();
       return true;
     }
 
     return false;
-  }
+  }, [logout]);
 
-  async function fetchBaseData() {
+  const fetchBaseData = useCallback(async () => {
     try {
       setLoadingWorkspace(true);
       const [tablesData, sessionsData, menuData] = await Promise.all([
@@ -73,11 +82,15 @@ function SessionsPage() {
     } finally {
       setLoadingWorkspace(false);
     }
-  }
+  }, [handleAuthError, token]);
 
   useEffect(() => {
-    fetchBaseData();
-  }, [token]);
+    async function syncBaseData() {
+      await fetchBaseData();
+    }
+
+    void syncBaseData();
+  }, [fetchBaseData]);
 
   useEffect(() => {
     if (!selectedSessionId) {
@@ -121,12 +134,51 @@ function SessionsPage() {
       }
     }
 
-    fetchSessionDetails();
+    void fetchSessionDetails();
 
     return () => {
       cancelled = true;
     };
-  }, [selectedSessionId, token]);
+  }, [handleAuthError, selectedSessionId, token]);
+
+  const sortedSessions = useMemo(() => {
+    const nextSessions = [...sessions];
+
+    nextSessions.sort((sessionA, sessionB) => {
+      if (sessionSortBy === "table") {
+        return compareText(sessionA.table_names, sessionB.table_names);
+      }
+
+      if (sessionSortBy === "customer") {
+        return compareText(sessionA.customer_name || "Khách vãng lai", sessionB.customer_name || "Khách vãng lai");
+      }
+
+      if (sessionSortBy === "guests_desc") {
+        return Number(sessionB.guest_count) - Number(sessionA.guest_count) ||
+          compareText(sessionA.table_names, sessionB.table_names);
+      }
+
+      if (sessionSortBy === "order_total_desc") {
+        return Number(sessionB.open_order_total || 0) - Number(sessionA.open_order_total || 0) ||
+          compareText(sessionA.table_names, sessionB.table_names);
+      }
+
+      return (sessionB.session_id || 0) - (sessionA.session_id || 0);
+    });
+
+    return nextSessions;
+  }, [sessionSortBy, sessions]);
+
+  const sessionTotalPages = Math.max(1, Math.ceil(sortedSessions.length / sessionPageSize));
+  const safeSessionPage = Math.min(sessionPage, sessionTotalPages);
+
+  const paginatedSessions = useMemo(() => {
+    const startIndex = (safeSessionPage - 1) * sessionPageSize;
+    return sortedSessions.slice(startIndex, startIndex + sessionPageSize);
+  }, [safeSessionPage, sessionPageSize, sortedSessions]);
+
+  const visibleSessionStart = sortedSessions.length ? (safeSessionPage - 1) * sessionPageSize + 1 : 0;
+  const visibleSessionEnd = Math.min(safeSessionPage * sessionPageSize, sortedSessions.length);
 
   function toggleWalkInTable(tableId) {
     setWalkInForm((currentValue) => {
@@ -139,6 +191,22 @@ function SessionsPage() {
           : [...currentValue.table_ids, tableId]
       };
     });
+  }
+
+  function handleSessionSortChange(event) {
+    setSessionSortBy(event.target.value);
+    setSessionPage(1);
+  }
+
+  function handleSessionPageSizeChange(event) {
+    setSessionPageSize(Number(event.target.value));
+    setSessionPage(1);
+  }
+
+  function resetSessionView() {
+    setSessionSortBy("latest");
+    setSessionPageSize(4);
+    setSessionPage(1);
   }
 
   async function handleCreateWalkIn(event) {
@@ -163,7 +231,7 @@ function SessionsPage() {
         table_ids: [],
         notes: ""
       });
-      setFeedback({ type: "success", message: "Da mo phien phuc vu cho khach vang lai." });
+      setFeedback({ type: "success", message: "Đã mở phiên phục vụ cho khách vãng lai." });
       await fetchBaseData();
     } catch (error) {
       if (!handleAuthError(error)) {
@@ -188,12 +256,12 @@ function SessionsPage() {
         body: {
           session_id: selectedSessionId,
           employee_id: user.employee_id,
-          notes: "Order tao tu frontend"
+          notes: "Order tạo từ frontend"
         }
       });
 
       setSelectedOrder(response.order || response);
-      setFeedback({ type: "success", message: "Da tao order cho ban dang phuc vu." });
+      setFeedback({ type: "success", message: "Đã tạo order cho bàn đang phục vụ." });
       await fetchBaseData();
     } catch (error) {
       if (!handleAuthError(error)) {
@@ -208,7 +276,7 @@ function SessionsPage() {
     event.preventDefault();
 
     if (!selectedOrder?.order_id) {
-      setFeedback({ type: "error", message: "Can tao order truoc khi them mon." });
+      setFeedback({ type: "error", message: "Cần tạo order trước khi thêm món." });
       return;
     }
 
@@ -307,30 +375,30 @@ function SessionsPage() {
       <div className="ops-hero">
         <div className="ops-copy">
           <span className="eyebrow">Service flow</span>
-          <h1>Phien phuc vu va goi mon</h1>
+          <h1>Phiên phục vụ và gọi món</h1>
           <p>
-            Man nay duoc toi uu cho thao tac tai sanh: mo phien cho khach vang lai, chon ban dang phuc vu, tao order va
-            cap nhat mon ngay trong mot workspace.
+            Màn này được tối ưu cho thao tác tại sảnh: mở phiên cho khách vãng lai, chọn bàn đang phục vụ, tạo order
+            và cập nhật món ngay trong một workspace.
           </p>
         </div>
 
         <div className="ops-kpis">
           <article className="ops-kpi">
-            <span>Phien dang mo</span>
+            <span>Phiên đang mở</span>
             <strong>{openSessionsCount}</strong>
-            <small>So ban dang phuc vu trong he thong.</small>
+            <small>Số bàn đang phục vụ trong hệ thống.</small>
           </article>
 
           <article className="ops-kpi">
-            <span>Da co order</span>
+            <span>Đã có order</span>
             <strong>{sessionsWithOrderCount}</strong>
-            <small>San sang chuyen sang thanh toan.</small>
+            <small>Sẵn sàng chuyển sang thanh toán.</small>
           </article>
 
           <article className="ops-kpi">
-            <span>Ban san sang</span>
+            <span>Bàn sẵn sàng</span>
             <strong>{availableWalkInTables.length}</strong>
-            <small>Dung cho khach vang lai vao truc tiep.</small>
+            <small>Dùng cho khách vãng lai vào trực tiếp.</small>
           </article>
         </div>
       </div>
@@ -343,34 +411,34 @@ function SessionsPage() {
 
       <div className="flow-strip">
         <article className={`flow-step${walkInForm.table_ids.length ? " active" : ""}`}>
-          <span>Buoc 1</span>
-          <strong>Mo phien</strong>
-          <small>Chon ban cho khach vang lai hoac nhan phien tu dat ban.</small>
+          <span>Bước 1</span>
+          <strong>Mở phiên</strong>
+          <small>Chọn bàn cho khách vãng lai hoặc nhận phiên từ đặt bàn.</small>
         </article>
 
         <article className={`flow-step${selectedSessionId ? " active" : ""}`}>
-          <span>Buoc 2</span>
-          <strong>Chon session</strong>
-          <small>Tap trung vao mot ban dang phuc vu de thao tac nhanh.</small>
+          <span>Bước 2</span>
+          <strong>Chọn session</strong>
+          <small>Tập trung vào một bàn đang phục vụ để thao tác nhanh.</small>
         </article>
 
         <article className={`flow-step${selectedOrder ? " active" : ""}`}>
-          <span>Buoc 3</span>
-          <strong>Cap nhat order</strong>
-          <small>Them mon, doi so luong va chuan bi chuyen sang thanh toan.</small>
+          <span>Bước 3</span>
+          <strong>Cập nhật order</strong>
+          <small>Thêm món, đổi số lượng và chuẩn bị chuyển sang thanh toán.</small>
         </article>
       </div>
 
-      <div className="app-grid-2">
+      <div className="workspace-grid">
         <div className="content-card stack-card">
           <div className="section-heading">
-            <h3>Khach vang lai</h3>
-            <p>Neu khach khong dat truoc, nhan vien co the mo phien phuc vu truc tiep.</p>
+            <h3>Khách vãng lai</h3>
+            <p>Nếu khách không đặt trước, nhân viên có thể mở phiên phục vụ trực tiếp.</p>
           </div>
 
           <div className="soft-banner">
-            <strong>{walkInForm.table_ids.length ? `${walkInForm.table_ids.length} ban da duoc chon` : "Chua chon ban"}</strong>
-            <span>So khach hien tai: {walkInForm.guest_count}. Co the chon nhieu ban neu doan dong.</span>
+            <strong>{walkInForm.table_ids.length ? `${walkInForm.table_ids.length} bàn đã được chọn` : "Chưa chọn bàn"}</strong>
+            <span>Số khách hiện tại: {walkInForm.guest_count}. Có thể chọn nhiều bàn nếu đoàn đông.</span>
           </div>
 
           <form className="row g-3" onSubmit={handleCreateWalkIn}>
@@ -391,7 +459,7 @@ function SessionsPage() {
               <input
                 type="text"
                 className="form-control"
-                placeholder="Ghi chu cho phien phuc vu"
+                placeholder="Ghi chú cho phiên phục vụ"
                 value={walkInForm.notes}
                 onChange={(event) => setWalkInForm((currentValue) => ({ ...currentValue, notes: event.target.value }))}
               />
@@ -407,7 +475,7 @@ function SessionsPage() {
                     onClick={() => toggleWalkInTable(table.table_id)}
                   >
                     <strong>{table.table_name}</strong>
-                    <span>{table.capacity} khach</span>
+                    <span>{table.capacity} khách</span>
                     <small>{table.status}</small>
                   </button>
                 ))}
@@ -416,26 +484,70 @@ function SessionsPage() {
 
             <div className="col-12 d-grid">
               <button type="submit" className="primary-button" disabled={creatingWalkIn}>
-                {creatingWalkIn ? "Dang mo..." : "Mo phien phuc vu"}
+                {creatingWalkIn ? "Đang mở..." : "Mở phiên phục vụ"}
               </button>
             </div>
           </form>
         </div>
 
         <div className="content-card stack-card">
-          <div className="section-heading">
-            <h3>Danh sach ban dang phuc vu</h3>
-            <p>Chon phien dang mo de xem thong tin chi tiet va goi mon.</p>
+          <div className="table-toolbar">
+            <div className="section-heading">
+              <h3>Danh sách bàn đang phục vụ</h3>
+              <p>Chọn phiên đang mở để xem thông tin chi tiết và gọi món.</p>
+            </div>
+
+            <div className="table-toolbar-meta align-end">
+              <strong>
+                {visibleSessionStart}-{visibleSessionEnd} / {sortedSessions.length}
+              </strong>
+              <span>Trang {safeSessionPage}/{sessionTotalPages}</span>
+            </div>
+          </div>
+
+          <div className="table-toolbar filter-toolbar">
+            <div className="table-toolbar-meta">
+              <strong>{sortedSessions.length} phiên đang mở</strong>
+              <span>Sắp xếp theo bàn, khách, số khách hoặc tạm tính để chọn session cần thao tác nhanh hơn.</span>
+            </div>
+
+            <div className="table-controls-inline">
+              <label className="inline-field">
+                <span>Sắp xếp</span>
+                <select className="form-select mini-select" value={sessionSortBy} onChange={handleSessionSortChange}>
+                  <option value="latest">Mới nhất</option>
+                  <option value="table">Tên bàn</option>
+                  <option value="customer">Khách hàng</option>
+                  <option value="guests_desc">Đông khách trước</option>
+                  <option value="order_total_desc">Tạm tính cao trước</option>
+                </select>
+              </label>
+
+              <label className="inline-field">
+                <span>Mỗi trang</span>
+                <select className="form-select mini-select" value={sessionPageSize} onChange={handleSessionPageSizeChange}>
+                  {pageSizeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option} thẻ
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <button type="button" className="ghost-button" onClick={resetSessionView}>
+                Đặt lại view
+              </button>
+            </div>
           </div>
 
           {loadingWorkspace ? (
             <div className="screen-state" style={{ minHeight: 240 }}>
-              Dang tai phien phuc vu...
+              Đang tải phiên phục vụ...
             </div>
           ) : (
             <div className="selection-grid">
-              {sessions.length ? (
-                sessions.map((session) => (
+              {paginatedSessions.length ? (
+                paginatedSessions.map((session) => (
                   <button
                     key={session.session_id}
                     type="button"
@@ -443,28 +555,59 @@ function SessionsPage() {
                     onClick={() => setSelectedSessionId(session.session_id)}
                   >
                     <strong>{session.table_names}</strong>
-                    <span>{session.customer_name || "Khach vang lai"}</span>
-                    <small>{session.guest_count} khach | Tam tinh {formatCurrency(session.open_order_total || 0)}</small>
+                    <span>{session.customer_name || "Khách vãng lai"}</span>
+                    <small>{session.guest_count} khách | Tạm tính {formatCurrency(session.open_order_total || 0)}</small>
                   </button>
                 ))
               ) : (
-                <p className="muted-text">Chua co phien phuc vu nao dang mo.</p>
+                <p className="muted-text">Chưa có phiên phục vụ nào đang mở.</p>
               )}
             </div>
           )}
+
+          <div className="pagination-bar">
+            <div className="table-toolbar-meta">
+              <strong>Điều hướng trang</strong>
+              <span>Đổi số session mỗi trang để giữ mạnh tốc độ thao tác tại sảnh khi giờ cao điểm.</span>
+            </div>
+
+            <div className="pagination-actions">
+              <button
+                type="button"
+                className="ghost-button button-sm"
+                onClick={() => setSessionPage((currentValue) => Math.max(1, currentValue - 1))}
+                disabled={safeSessionPage === 1}
+              >
+                Trang trước
+              </button>
+
+              <span className="pagination-chip">
+                {safeSessionPage}/{sessionTotalPages}
+              </span>
+
+              <button
+                type="button"
+                className="ghost-button button-sm"
+                onClick={() => setSessionPage((currentValue) => Math.min(sessionTotalPages, currentValue + 1))}
+                disabled={safeSessionPage === sessionTotalPages}
+              >
+                Trang sau
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="content-card stack-card">
         <div className="section-heading">
-          <h3>Workspace goi mon</h3>
-          <p>Chon mot phien phuc vu ben tren de tao order, them mon, cap nhat so luong va xoa mon.</p>
+          <h3>Workspace gọi món</h3>
+          <p>Chọn một phiên phục vụ bên trên để tạo order, thêm món, cập nhật số lượng và xóa món.</p>
         </div>
 
         {selectedSessionId ? (
           loadingSessionDetails ? (
             <div className="screen-state" style={{ minHeight: 220 }}>
-              Dang tai chi tiet phien...
+              Đang tải chi tiết phiên...
             </div>
           ) : (
             <div className="app-grid-2">
@@ -477,49 +620,49 @@ function SessionsPage() {
                   </div>
 
                   <div className="summary-box">
-                    <span>Khach</span>
-                    <strong>{selectedSession?.customer_name || "Khach vang lai"}</strong>
-                    <small>{selectedSession?.guest_count} khach</small>
+                    <span>Khách</span>
+                    <strong>{selectedSession?.customer_name || "Khách vãng lai"}</strong>
+                    <small>{selectedSession?.guest_count} khách</small>
                   </div>
 
                   <div className="summary-box">
                     <span>Order</span>
-                    <strong>{selectedOrder?.order_code || "Chua tao"}</strong>
-                    <small>{selectedOrder ? formatCurrency(selectedOrder.total_amount) : "Tao order de bat dau goi mon."}</small>
+                    <strong>{selectedOrder?.order_code || "Chưa tạo"}</strong>
+                    <small>{selectedOrder ? formatCurrency(selectedOrder.total_amount) : "Tạo order để bắt đầu gọi món."}</small>
                   </div>
                 </div>
 
                 <div className="micro-stats">
                   <div className="micro-stat">
-                    <span>Mon dang loc</span>
+                    <span>Món đang lọc</span>
                     <strong>{filteredMenu.length}</strong>
                   </div>
 
                   <div className="micro-stat">
-                    <span>Mon trong order</span>
+                    <span>Món trong order</span>
                     <strong>{orderItemCount}</strong>
                   </div>
 
                   <div className="micro-stat">
-                    <span>Tam tinh</span>
+                    <span>Tạm tính</span>
                     <strong>{formatCurrency(selectedOrder?.total_amount || 0)}</strong>
                   </div>
                 </div>
 
                 {!selectedOrder ? (
                   <button type="button" className="primary-button" onClick={handleCreateOrder} disabled={creatingOrder}>
-                    {creatingOrder ? "Dang tao order..." : "Tao order cho phien nay"}
+                    {creatingOrder ? "Đang tạo order..." : "Tạo order cho phiên này"}
                   </button>
                 ) : (
                   <>
                     <div className="section-heading">
-                      <h3>Them mon vao order</h3>
-                      <p>Loc mon an theo ten hoac loai, sau do chon mon va nhap so luong.</p>
+                      <h3>Thêm món vào order</h3>
+                      <p>Lọc món ăn theo tên hoặc loại, sau đó chọn món và nhập số lượng.</p>
                     </div>
 
                     <div className="soft-banner">
-                      <strong>{filteredMenu.length} mon phu hop</strong>
-                      <span>Bo loc ho tro thao tac nhanh theo ten mon hoac nhom mon.</span>
+                      <strong>{filteredMenu.length} món phù hợp</strong>
+                      <span>Bộ lọc hỗ trợ thao tác nhanh theo tên món hoặc nhóm món.</span>
                     </div>
 
                     <form className="row g-3" onSubmit={handleAddOrderItem}>
@@ -527,7 +670,7 @@ function SessionsPage() {
                         <input
                           type="text"
                           className="form-control"
-                          placeholder="Loc mon an theo ten hoac loai"
+                          placeholder="Lọc món ăn theo tên hoặc loại"
                           value={menuFilter}
                           onChange={(event) => setMenuFilter(event.target.value)}
                         />
@@ -542,7 +685,7 @@ function SessionsPage() {
                           }
                           required
                         >
-                          <option value="">Chon mon an</option>
+                          <option value="">Chọn món ăn</option>
                           {filteredMenu.map((item) => (
                             <option key={item.item_id} value={item.item_id}>
                               {item.item_name} - {item.category} - {formatCurrency(item.price)}
@@ -566,7 +709,7 @@ function SessionsPage() {
 
                       <div className="col-md-3 d-grid">
                         <button type="submit" className="primary-button" disabled={addingItem}>
-                          {addingItem ? "Dang them..." : "Them mon"}
+                          {addingItem ? "Đang thêm..." : "Thêm món"}
                         </button>
                       </div>
 
@@ -574,7 +717,7 @@ function SessionsPage() {
                         <input
                           type="text"
                           className="form-control"
-                          placeholder="Ghi chu mon an"
+                          placeholder="Ghi chú món ăn"
                           value={itemForm.notes}
                           onChange={(event) => setItemForm((currentValue) => ({ ...currentValue, notes: event.target.value }))}
                         />
@@ -588,17 +731,17 @@ function SessionsPage() {
                 {selectedOrder ? (
                   <>
                     <div className="section-heading">
-                      <h3>Chi tiet order</h3>
-                      <p>Cap nhat so luong tung mon hoac xoa mon neu khach doi y.</p>
+                      <h3>Chi tiết order</h3>
+                      <p>Cập nhật số lượng từng món hoặc xóa món nếu khách đổi ý.</p>
                     </div>
 
                     <div className="table-shell">
                       <table className="table table-hover align-middle">
                         <thead>
                           <tr>
-                            <th>Mon</th>
+                            <th>Món</th>
                             <th>SL</th>
-                            <th>Thanh tien</th>
+                            <th>Thành tiền</th>
                             <th></th>
                           </tr>
                         </thead>
@@ -633,7 +776,7 @@ function SessionsPage() {
                                     onClick={() => handleUpdateOrderItem(item.order_item_id)}
                                     disabled={processingItemId === item.order_item_id}
                                   >
-                                    Luu
+                                    Lưu
                                   </button>
                                   <button
                                     type="button"
@@ -641,7 +784,7 @@ function SessionsPage() {
                                     onClick={() => handleDeleteOrderItem(item.order_item_id)}
                                     disabled={processingItemId === item.order_item_id}
                                   >
-                                    Xoa
+                                    Xóa
                                   </button>
                                 </td>
                               </tr>
@@ -649,7 +792,7 @@ function SessionsPage() {
                           ) : (
                             <tr>
                               <td colSpan="4" className="text-center py-4">
-                                Order chua co mon nao.
+                                Order chưa có món nào.
                               </td>
                             </tr>
                           )}
@@ -658,16 +801,16 @@ function SessionsPage() {
                     </div>
 
                     <div className="summary-box total-box">
-                      <span>Tong tam tinh</span>
+                      <span>Tổng tạm tính</span>
                       <strong>{formatCurrency(selectedOrder.total_amount || 0)}</strong>
-                      <small>Qua man Thanh toan de ket thuc phien nay.</small>
+                      <small>Qua màn Thanh toán để kết thúc phiên này.</small>
                     </div>
                   </>
                 ) : (
                   <div className="empty-card" style={{ padding: 22 }}>
                     <span className="eyebrow">Order</span>
-                    <h3 style={{ margin: "14px 0 8px" }}>Chua co order dang mo</h3>
-                    <p>Hay chon mot phien va tao order de bat dau nhap mon cho ban nay.</p>
+                    <h3 style={{ margin: "14px 0 8px" }}>Chưa có order đang mở</h3>
+                    <p>Hãy chọn một phiên và tạo order để bắt đầu nhập món cho bàn này.</p>
                   </div>
                 )}
               </div>
@@ -676,8 +819,8 @@ function SessionsPage() {
         ) : (
           <div className="empty-card">
             <span className="eyebrow">No session</span>
-            <h3 style={{ margin: "14px 0 8px" }}>Chua co phien phuc vu nao duoc chon</h3>
-            <p>Check-in mot phieu dat ban hoac mo phien vang lai de bat dau goi mon.</p>
+            <h3 style={{ margin: "14px 0 8px" }}>Chưa có phiên phục vụ nào được chọn</h3>
+            <p>Check-in một phiếu đặt bàn hoặc mở phiên vãng lai để bắt đầu gọi món.</p>
           </div>
         )}
       </div>

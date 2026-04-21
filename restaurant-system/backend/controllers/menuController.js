@@ -68,7 +68,7 @@ exports.getMenuById = async (req, res) => {
     );
 
     if (!rows.length) {
-      return res.status(404).json({ message: "Khong tim thay mon an." });
+      return res.status(404).json({ message: "Không tìm thấy món ăn." });
     }
 
     res.json(rows[0]);
@@ -81,11 +81,11 @@ exports.addMenu = async (req, res) => {
   const payload = normalizeMenuPayload(req.body);
 
   if (!payload.category || !payload.itemName) {
-    return res.status(400).json({ message: "Loai mon va ten mon la bat buoc." });
+    return res.status(400).json({ message: "Loại món và tên món là bắt buộc." });
   }
 
   if (!Number.isFinite(payload.price) || payload.price <= 0) {
-    return res.status(400).json({ message: "Gia mon an phai lon hon 0." });
+    return res.status(400).json({ message: "Giá món ăn phải lớn hơn 0." });
   }
 
   try {
@@ -109,13 +109,13 @@ exports.addMenu = async (req, res) => {
     );
 
     res.status(201).json({
-      message: "Them mon an thanh cong.",
+      message: "Thêm món ăn thành công.",
       itemId: result.insertId,
       itemCode
     });
   } catch (error) {
     handleDbError(res, error, {
-      duplicate: "Ma mon an da ton tai."
+      duplicate: "Mã món ăn đã tồn tại."
     });
   }
 };
@@ -124,11 +124,11 @@ exports.updateMenu = async (req, res) => {
   const payload = normalizeMenuPayload(req.body);
 
   if (!payload.category || !payload.itemName) {
-    return res.status(400).json({ message: "Loai mon va ten mon la bat buoc." });
+    return res.status(400).json({ message: "Loại món và tên món là bắt buộc." });
   }
 
   if (!Number.isFinite(payload.price) || payload.price <= 0) {
-    return res.status(400).json({ message: "Gia mon an phai lon hon 0." });
+    return res.status(400).json({ message: "Giá món ăn phải lớn hơn 0." });
   }
 
   try {
@@ -150,10 +150,10 @@ exports.updateMenu = async (req, res) => {
     );
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: "Khong tim thay mon an de cap nhat." });
+      return res.status(404).json({ message: "Không tìm thấy món ăn để cập nhật." });
     }
 
-    res.json({ message: "Cap nhat mon an thanh cong." });
+    res.json({ message: "Cập nhật món ăn thành công." });
   } catch (error) {
     handleDbError(res, error);
   }
@@ -167,13 +167,13 @@ exports.deleteMenu = async (req, res) => {
     );
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: "Khong tim thay mon an de xoa." });
+      return res.status(404).json({ message: "Không tìm thấy món ăn để xóa." });
     }
 
-    res.json({ message: "Xoa mon an thanh cong." });
+    res.json({ message: "Xóa món ăn thành công." });
   } catch (error) {
     handleDbError(res, error, {
-      referenced: "Mon an dang duoc su dung trong don hang, khong the xoa."
+      referenced: "Món ăn đang được sử dụng trong đơn hàng, không thể xóa."
     });
   }
 };

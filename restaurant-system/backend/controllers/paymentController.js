@@ -44,12 +44,12 @@ exports.createPayment = async (req, res) => {
 
   if (!Number.isInteger(orderId) || orderId <= 0) {
     connection.release();
-    return res.status(400).json({ message: "Ma order khong hop le." });
+    return res.status(400).json({ message: "Mã order không hợp lệ." });
   }
 
   if (!allowedMethods.includes(paymentMethod)) {
     connection.release();
-    return res.status(400).json({ message: "Phuong thuc thanh toan khong hop le." });
+    return res.status(400).json({ message: "Phương thức thanh toán không hợp lệ." });
   }
 
   try {
@@ -63,12 +63,12 @@ exports.createPayment = async (req, res) => {
     );
 
     if (!orderRows.length) {
-      return res.status(404).json({ message: "Khong tim thay order de thanh toan." });
+      return res.status(404).json({ message: "Không tìm thấy order để thanh toán." });
     }
 
     const order = orderRows[0];
     if (order.status !== "open") {
-      return res.status(400).json({ message: "Order nay khong o trang thai co the thanh toan." });
+      return res.status(400).json({ message: "Order này không ở trạng thái có thể thanh toán." });
     }
 
     const [paymentRows] = await connection.query(
@@ -81,7 +81,7 @@ exports.createPayment = async (req, res) => {
     );
 
     if (paymentRows.length) {
-      return res.status(409).json({ message: "Order nay da duoc thanh toan." });
+      return res.status(409).json({ message: "Order này đã được thanh toán." });
     }
 
     const [itemRows] = await connection.query(
@@ -94,7 +94,7 @@ exports.createPayment = async (req, res) => {
     );
 
     if (!Number(itemRows[0]?.total_items || 0)) {
-      return res.status(400).json({ message: "Order chua co mon nao, khong the thanh toan." });
+      return res.status(400).json({ message: "Order này chưa có món nào, không thể thanh toán." });
     }
 
     await connection.beginTransaction();
@@ -178,7 +178,7 @@ exports.createPayment = async (req, res) => {
     const orderDetails = await getOrderDetails(connection, orderId);
 
     res.status(201).json({
-      message: "Thanh toan thanh cong.",
+      message: "Thanh toán thành công.",
       paymentId: paymentResult.insertId,
       paymentCode,
       order: orderDetails
@@ -186,8 +186,8 @@ exports.createPayment = async (req, res) => {
   } catch (error) {
     await connection.rollback();
     handleDbError(res, error, {
-      duplicate: "Thanh toan nay da ton tai.",
-      foreignKey: "Order khong hop le."
+      duplicate: "Thanh toán này đã tồn tại.",
+      foreignKey: "Order không hợp lệ."
     });
   } finally {
     connection.release();

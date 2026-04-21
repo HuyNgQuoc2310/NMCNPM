@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/useAuth";
+import useDebouncedValue from "../hooks/useDebouncedValue";
 import { apiFetch } from "../services/apiClient";
 
 const initialTableForm = {
@@ -15,6 +16,12 @@ const initialTableFilters = {
   status: ""
 };
 
+const pageSizeOptions = [5, 10, 20];
+
+function compareText(valueA = "", valueB = "") {
+  return valueA.localeCompare(valueB, "vi", { sensitivity: "base" });
+}
+
 function TableManager({ canManage }) {
   const { logout, token } = useAuth();
   const [tables, setTables] = useState([]);
@@ -24,18 +31,28 @@ function TableManager({ canManage }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [sortBy, setSortBy] = useState("latest");
+  const [pageSize, setPageSize] = useState(5);
+  const [currentPage, setCurrentPage] = useState(1);
   const [feedback, setFeedback] = useState({ type: "", message: "" });
+  const debouncedKeyword = useDebouncedValue(filters.keyword, 400);
+  const isDebouncingKeyword = filters.keyword !== debouncedKeyword;
 
-  function handleAuthError(error) {
+  const appliedFilters = useMemo(() => ({
+    keyword: debouncedKeyword,
+    status: filters.status
+  }), [debouncedKeyword, filters.status]);
+
+  const handleAuthError = useCallback((error) => {
     if (error.status === 401) {
       logout();
       return true;
     }
 
     return false;
-  }
+  }, [logout]);
 
-  function buildQuery(nextFilters = filters) {
+  const buildQuery = useCallback((nextFilters) => {
     const params = new URLSearchParams();
 
     if (nextFilters.keyword.trim()) {
@@ -47,9 +64,9 @@ function TableManager({ canManage }) {
     }
 
     return params.toString();
-  }
+  }, []);
 
-  async function fetchTables(nextFilters = filters) {
+  const fetchTables = useCallback(async (nextFilters) => {
     try {
       setLoading(true);
       setFeedback((currentValue) => ({ ...currentValue, message: "" }));
@@ -63,40 +80,64 @@ function TableManager({ canManage }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [buildQuery, handleAuthError, token]);
 
   useEffect(() => {
-    let ignore = false;
-
-    async function bootstrapTables() {
-      try {
-        const data = await apiFetch("/tables", { token });
-
-        if (!ignore) {
-          setTables(data);
-        }
-      } catch (error) {
-        if (!ignore && error.status === 401) {
-          logout();
-          return;
-        }
-
-        if (!ignore) {
-          setFeedback({ type: "error", message: error.message });
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
-      }
+    async function syncTables() {
+      await fetchTables(appliedFilters);
     }
 
-    void bootstrapTables();
+    void syncTables();
+  }, [appliedFilters, fetchTables]);
 
-    return () => {
-      ignore = true;
-    };
-  }, [logout, token]);
+  const sortedTables = useMemo(() => {
+    const nextTables = [...tables];
+
+    nextTables.sort((tableA, tableB) => {
+      if (sortBy === "name_asc") {
+        return compareText(tableA.table_name, tableB.table_name);
+      }
+
+      if (sortBy === "name_desc") {
+        return compareText(tableB.table_name, tableA.table_name);
+      }
+
+      if (sortBy === "capacity_asc") {
+        return Number(tableA.capacity) - Number(tableB.capacity) ||
+          compareText(tableA.table_name, tableB.table_name);
+      }
+
+      if (sortBy === "capacity_desc") {
+        return Number(tableB.capacity) - Number(tableA.capacity) ||
+          compareText(tableA.table_name, tableB.table_name);
+      }
+
+      if (sortBy === "status") {
+        return compareText(tableA.status, tableB.status) ||
+          compareText(tableA.table_name, tableB.table_name);
+      }
+
+      if (sortBy === "active") {
+        return Number(tableB.is_active) - Number(tableA.is_active) ||
+          compareText(tableA.table_name, tableB.table_name);
+      }
+
+      return (tableB.table_id || 0) - (tableA.table_id || 0);
+    });
+
+    return nextTables;
+  }, [sortBy, tables]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedTables.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedTables = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * pageSize;
+    return sortedTables.slice(startIndex, startIndex + pageSize);
+  }, [pageSize, safeCurrentPage, sortedTables]);
+
+  const visibleStart = sortedTables.length ? (safeCurrentPage - 1) * pageSize + 1 : 0;
+  const visibleEnd = Math.min(safeCurrentPage * pageSize, sortedTables.length);
 
   function resetForm() {
     setEditingTableId(null);
@@ -104,10 +145,28 @@ function TableManager({ canManage }) {
   }
 
   function handleFilterChange(event) {
+    setCurrentPage(1);
     setFilters((currentValue) => ({
       ...currentValue,
       [event.target.name]: event.target.value
     }));
+  }
+
+  function resetFilters() {
+    setFilters(initialTableFilters);
+    setSortBy("latest");
+    setPageSize(5);
+    setCurrentPage(1);
+  }
+
+  function handleSortChange(event) {
+    setSortBy(event.target.value);
+    setCurrentPage(1);
+  }
+
+  function handlePageSizeChange(event) {
+    setPageSize(Number(event.target.value));
+    setCurrentPage(1);
   }
 
   function handleFormChange(event) {
@@ -149,10 +208,10 @@ function TableManager({ canManage }) {
 
       setFeedback({
         type: "success",
-        message: editingTableId ? "Da cap nhat ban an." : "Da them ban an moi."
+        message: editingTableId ? "Đã cập nhật bàn ăn." : "Đã thêm bàn ăn mới."
       });
       resetForm();
-      await fetchTables();
+      await fetchTables(appliedFilters);
     } catch (error) {
       if (!handleAuthError(error)) {
         setFeedback({ type: "error", message: error.message });
@@ -163,7 +222,7 @@ function TableManager({ canManage }) {
   }
 
   async function handleDelete(table) {
-    const confirmed = window.confirm(`Xoa ban ${table.table_name}?`);
+    const confirmed = window.confirm(`Xóa bàn ${table.table_name}?`);
     if (!confirmed) {
       return;
     }
@@ -180,8 +239,8 @@ function TableManager({ canManage }) {
         resetForm();
       }
 
-      setFeedback({ type: "success", message: "Da xoa ban an." });
-      await fetchTables();
+      setFeedback({ type: "success", message: "Đã xóa bàn ăn." });
+      await fetchTables(appliedFilters);
     } catch (error) {
       if (!handleAuthError(error)) {
         setFeedback({ type: "error", message: error.message });
@@ -199,18 +258,21 @@ function TableManager({ canManage }) {
         </div>
       ) : null}
 
-      <div className="app-grid-2">
+      <div className="app-grid-2 table-workspace-grid">
         <div className="panel-card stack-card">
           <div className="section-heading">
-            <h3>Bo loc ban an</h3>
-            <p>Tim theo ten ban, ma ban, mo ta hoac loc nhanh theo trang thai van hanh.</p>
+            <h3>Bộ lọc bàn ăn</h3>
+            <p>Tìm theo tên bàn, mã bàn, mô tả hoặc lọc nhanh theo trạng thái vận hành.</p>
           </div>
 
           <form
             className="row g-3"
             onSubmit={(event) => {
               event.preventDefault();
-              fetchTables();
+              void fetchTables({
+                keyword: filters.keyword,
+                status: filters.status
+              });
             }}
           >
             <div className="col-md-8">
@@ -218,10 +280,13 @@ function TableManager({ canManage }) {
                 type="text"
                 name="keyword"
                 className="form-control"
-                placeholder="Nhap ma ban, ten ban hoac mo ta"
+                placeholder="Nhập mã bàn, tên bàn hoặc mô tả"
                 value={filters.keyword}
                 onChange={handleFilterChange}
               />
+              <div className="table-subtext">
+                {isDebouncingKeyword ? "Đang cập nhật bộ lọc..." : "Tìm kiếm tự động sau 0.4 giây khi dừng gõ."}
+              </div>
             </div>
 
             <div className="col-md-2">
@@ -231,7 +296,7 @@ function TableManager({ canManage }) {
                 value={filters.status}
                 onChange={handleFilterChange}
               >
-                <option value="">Tat ca</option>
+                <option value="">Tất cả</option>
                 <option value="available">available</option>
                 <option value="reserved">reserved</option>
                 <option value="occupied">occupied</option>
@@ -239,10 +304,49 @@ function TableManager({ canManage }) {
               </select>
             </div>
 
-            <div className="col-md-2 d-grid">
+            <div className="col-md-auto d-grid">
               <button type="submit" className="ghost-button">
-                Loc
+                Làm mới ngay
               </button>
+            </div>
+
+            <div className="col-12">
+              <div className="table-toolbar filter-toolbar">
+                <div className="table-toolbar-meta">
+                  <strong>{sortedTables.length} bàn ăn</strong>
+                  <span>Bảng dữ liệu đã có sắp xếp theo tên, sức chứa, trạng thái và chia trang để thao tác nhanh hơn.</span>
+                </div>
+
+                <div className="table-controls-inline">
+                  <label className="inline-field">
+                    <span>Sắp xếp</span>
+                    <select className="form-select mini-select" value={sortBy} onChange={handleSortChange}>
+                      <option value="latest">Mới cập nhật</option>
+                      <option value="name_asc">Tên A-Z</option>
+                      <option value="name_desc">Tên Z-A</option>
+                      <option value="capacity_asc">Sức chứa thấp đến cao</option>
+                      <option value="capacity_desc">Sức chứa cao đến thấp</option>
+                      <option value="status">Trạng thái</option>
+                      <option value="active">Đang mở trước</option>
+                    </select>
+                  </label>
+
+                  <label className="inline-field">
+                    <span>Mỗi trang</span>
+                    <select className="form-select mini-select" value={pageSize} onChange={handlePageSizeChange}>
+                      {pageSizeOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option} dòng
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <button type="button" className="ghost-button" onClick={resetFilters}>
+                    Đặt lại
+                  </button>
+                </div>
+              </div>
             </div>
           </form>
         </div>
@@ -250,8 +354,8 @@ function TableManager({ canManage }) {
         {canManage ? (
           <div className="panel-card stack-card">
             <div className="section-heading">
-              <h3>{editingTableId ? "Cap nhat ban an" : "Them ban an"}</h3>
-              <p>Admin co the doi suc chua, trang thai, mo ta va mo/khoa ban ngay tren form nay.</p>
+              <h3>{editingTableId ? "Cập nhật bàn ăn" : "Thêm bàn ăn"}</h3>
+              <p>Admin có thể đổi sức chứa, trạng thái, mô tả và mở/khóa bàn ngay trên form này.</p>
             </div>
 
             <form className="row g-3" onSubmit={handleSubmit}>
@@ -260,7 +364,7 @@ function TableManager({ canManage }) {
                   type="text"
                   name="table_name"
                   className="form-control"
-                  placeholder="Ten ban"
+                  placeholder="Tên bàn"
                   value={formData.table_name}
                   onChange={handleFormChange}
                   required
@@ -273,7 +377,7 @@ function TableManager({ canManage }) {
                   min="1"
                   name="capacity"
                   className="form-control"
-                  placeholder="Suc chua"
+                  placeholder="Sức chứa"
                   value={formData.capacity}
                   onChange={handleFormChange}
                   required
@@ -299,7 +403,7 @@ function TableManager({ canManage }) {
                   type="text"
                   name="description"
                   className="form-control"
-                  placeholder="Mo ta ban"
+                  placeholder="Mô tả bàn"
                   value={formData.description}
                   onChange={handleFormChange}
                 />
@@ -312,20 +416,20 @@ function TableManager({ canManage }) {
                   value={formData.is_active}
                   onChange={handleFormChange}
                 >
-                  <option value="1">Dang mo</option>
-                  <option value="0">Tam khoa</option>
+                  <option value="1">Đang mở</option>
+                  <option value="0">Tạm khóa</option>
                 </select>
               </div>
 
               <div className="col-md-6 d-grid">
                 <button type="submit" className="primary-button" disabled={submitting}>
-                  {submitting ? "Dang luu..." : editingTableId ? "Cap nhat ban" : "Them ban"}
+                  {submitting ? "Đang lưu..." : editingTableId ? "Cập nhật bàn" : "Thêm bàn"}
                 </button>
               </div>
 
               <div className="col-md-6 d-grid">
                 <button type="button" className="ghost-button" onClick={resetForm} disabled={submitting}>
-                  Bo form
+                  Bỏ form
                 </button>
               </div>
             </form>
@@ -333,81 +437,128 @@ function TableManager({ canManage }) {
         ) : (
           <div className="panel-card stack-card">
             <div className="section-heading">
-              <h3>Quyen staff</h3>
-              <p>Tai khoan staff chi duoc xem thong tin ban, suc chua va trang thai phuc vu.</p>
+              <h3>Quyền staff</h3>
+              <p>Tài khoản staff chỉ được xem thông tin bàn, sức chứa và trạng thái phục vụ.</p>
             </div>
 
             <div className="soft-banner">
-              <strong>Che do chi xem</strong>
-              <span>Ban van co the loc nhanh de tim ban phu hop khi tiep nhan dat ban hoac check-in.</span>
+              <strong>Chế độ chỉ xem</strong>
+              <span>Bạn vẫn có thể lọc nhanh để tìm bàn phù hợp khi tiếp nhận đặt bàn hoặc check-in.</span>
             </div>
           </div>
         )}
       </div>
 
-      {loading ? (
-        <div className="screen-state" style={{ minHeight: 220 }}>
-          Dang tai danh sach ban...
-        </div>
-      ) : (
-        <div className="table-shell">
-          <table className="table table-hover align-middle">
-            <thead>
-              <tr>
-                <th>Ma ban</th>
-                <th>Ten ban</th>
-                <th>Suc chua</th>
-                <th>Trang thai</th>
-                <th>Mo/khoa</th>
-                <th>Mo ta</th>
-                {canManage ? <th></th> : null}
-              </tr>
-            </thead>
+      <div className="content-card stack-card">
+        <div className="table-toolbar">
+          <div className="section-heading">
+            <h3>Danh sách bàn ăn</h3>
+            <p>Bảng bàn ăn đã có chia trang và sắp xếp đồng bộ với các module quản trị khác.</p>
+          </div>
 
-            <tbody>
-              {tables.length ? (
-                tables.map((table) => (
-                  <tr key={table.table_id}>
-                    <td>{table.table_code}</td>
-                    <td>{table.table_name}</td>
-                    <td>{table.capacity} khach</td>
-                    <td>
-                      <span className={`status-pill status-${table.status}`}>{table.status}</span>
-                    </td>
-                    <td>
-                      <span className={`status-pill ${table.is_active ? "status-active" : "status-inactive"}`}>
-                        {table.is_active ? "dang_mo" : "tam_khoa"}
-                      </span>
-                    </td>
-                    <td>{table.description || "--"}</td>
-                    {canManage ? (
-                      <td className="action-cell">
-                        <button type="button" className="ghost-button button-sm" onClick={() => startEditing(table)}>
-                          Sua
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost-button button-sm danger-button"
-                          onClick={() => handleDelete(table)}
-                          disabled={deletingId === table.table_id}
-                        >
-                          {deletingId === table.table_id ? "Dang xoa..." : "Xoa"}
-                        </button>
-                      </td>
-                    ) : null}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={canManage ? "7" : "6"} className="text-center py-4">
-                    Chua co du lieu ban an.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <div className="table-toolbar-meta align-end">
+            <strong>
+              {visibleStart}-{visibleEnd} / {sortedTables.length}
+            </strong>
+            <span>Trang {safeCurrentPage}/{totalPages}</span>
+          </div>
         </div>
-      )}
+
+        {loading ? (
+          <div className="screen-state" style={{ minHeight: 220 }}>
+            Đang tải danh sách bàn...
+          </div>
+        ) : (
+          <div className="table-shell">
+            <table className="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>Mã bàn</th>
+                  <th>Tên bàn</th>
+                  <th>Sức chứa</th>
+                  <th>Trạng thái</th>
+                  <th>Mở/khóa</th>
+                  <th>Mô tả</th>
+                  {canManage ? <th></th> : null}
+                </tr>
+              </thead>
+
+              <tbody>
+                {paginatedTables.length ? (
+                  paginatedTables.map((table) => (
+                    <tr key={table.table_id} className={editingTableId === table.table_id ? "table-row-active" : ""}>
+                      <td>{table.table_code}</td>
+                      <td>{table.table_name}</td>
+                      <td>{table.capacity} khách</td>
+                      <td>
+                        <span className={`status-pill status-${table.status}`}>{table.status}</span>
+                      </td>
+                      <td>
+                        <span className={`status-pill ${table.is_active ? "status-active" : "status-inactive"}`}>
+                          {table.is_active ? "đang_mở" : "tạm_khóa"}
+                        </span>
+                      </td>
+                      <td>{table.description || "--"}</td>
+                      {canManage ? (
+                        <td className="action-cell">
+                          <button type="button" className="ghost-button button-sm" onClick={() => startEditing(table)}>
+                            Sửa
+                          </button>
+                          <button
+                            type="button"
+                            className="ghost-button button-sm danger-button"
+                            onClick={() => handleDelete(table)}
+                            disabled={deletingId === table.table_id}
+                          >
+                            {deletingId === table.table_id ? "Đang xóa..." : "Xóa"}
+                          </button>
+                        </td>
+                      ) : null}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={canManage ? "7" : "6"} className="text-center py-4">
+                      Chưa có dữ liệu bàn ăn.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="pagination-bar">
+          <div className="table-toolbar-meta">
+            <strong>Điều hướng trang</strong>
+            <span>Nếu số lượng bàn nhiều, bạn có thể giảm số dòng mỗi trang để thao tác và demo dễ hơn.</span>
+          </div>
+
+          <div className="pagination-actions">
+            <button
+              type="button"
+              className="ghost-button button-sm"
+              onClick={() => setCurrentPage((currentValue) => Math.max(1, currentValue - 1))}
+              disabled={safeCurrentPage === 1}
+            >
+              Trang trước
+            </button>
+
+            <span className="pagination-chip">
+              {safeCurrentPage}/{totalPages}
+            </span>
+
+            <button
+              type="button"
+              className="ghost-button button-sm"
+              onClick={() => setCurrentPage((currentValue) => Math.min(totalPages, currentValue + 1))}
+              disabled={safeCurrentPage === totalPages}
+            >
+              Trang sau
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

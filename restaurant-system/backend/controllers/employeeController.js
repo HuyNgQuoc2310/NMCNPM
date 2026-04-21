@@ -93,7 +93,7 @@ exports.getEmployeeById = async (req, res) => {
     );
 
     if (!rows.length) {
-      return res.status(404).json({ message: "Khong tim thay nhan vien." });
+      return res.status(404).json({ message: "Không tìm thấy nhân viên." });
     }
 
     res.json(buildEmployeeResponse(rows[0]));
@@ -107,12 +107,12 @@ exports.addEmployee = async (req, res) => {
 
   if (!payload.username || !payload.password || !payload.fullName || !payload.position) {
     return res.status(400).json({
-      message: "Username, password, ten va chuc vu nhan vien la bat buoc."
+      message: "Username, password, tên và chức vụ nhân viên là bắt buộc."
     });
   }
 
   if (!allowedRoles.includes(payload.role)) {
-    return res.status(400).json({ message: "Role nhan vien khong hop le." });
+    return res.status(400).json({ message: "Chức vụ nhân viên không hợp lệ." });
   }
 
   try {
@@ -142,13 +142,13 @@ exports.addEmployee = async (req, res) => {
     );
 
     res.status(201).json({
-      message: "Them nhan vien thanh cong.",
+      message: "Thêm nhân viên thành công.",
       employeeId: result.insertId,
       employeeCode
     });
   } catch (error) {
     handleDbError(res, error, {
-      duplicate: "Ma nhan vien, username, email hoac so dien thoai da ton tai."
+      duplicate: "Mã nhân viên, username, email hoặc số điện thoại đã tồn tại."
     });
   }
 };
@@ -158,26 +158,26 @@ exports.updateEmployee = async (req, res) => {
   const employeeId = Number(req.params.id);
 
   if (!Number.isInteger(employeeId) || employeeId <= 0) {
-    return res.status(400).json({ message: "Ma nhan vien khong hop le." });
+    return res.status(400).json({ message: "Mã nhân viên không hợp lệ." });
   }
 
   if (!payload.username || !payload.fullName || !payload.position) {
     return res.status(400).json({
-      message: "Username, ten va chuc vu nhan vien la bat buoc."
+      message: "Username, tên và chức vụ nhân viên là bắt buộc."
     });
   }
 
   if (!allowedRoles.includes(payload.role)) {
-    return res.status(400).json({ message: "Role nhan vien khong hop le." });
+    return res.status(400).json({ message: "Chức vụ nhân viên không hợp lệ." });
   }
 
   if (req.user?.employeeId === employeeId) {
     if (!payload.isActive) {
-      return res.status(400).json({ message: "Ban khong the tu khoa tai khoan cua chinh minh." });
+      return res.status(400).json({ message: "Bạn không thể tự khóa tài khoản của chính mình." });
     }
 
     if (payload.role !== "admin") {
-      return res.status(400).json({ message: "Ban khong the tu ha quyen admin cua chinh minh." });
+      return res.status(400).json({ message: "Bạn không thể tự hạ quyền admin của chính mình." });
     }
   }
 
@@ -221,13 +221,13 @@ exports.updateEmployee = async (req, res) => {
     );
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: "Khong tim thay nhan vien de cap nhat." });
+      return res.status(404).json({ message: "Không tìm thấy nhân viên để cập nhật." });
     }
 
-    res.json({ message: "Cap nhat nhan vien thanh cong." });
+    res.json({ message: "Cập nhật nhân viên thành công." });
   } catch (error) {
     handleDbError(res, error, {
-      duplicate: "Username, email hoac so dien thoai nhan vien da ton tai."
+      duplicate: "Username, email hoặc số điện thoại nhân viên đã tồn tại."
     });
   }
 };
@@ -236,11 +236,11 @@ exports.deleteEmployee = async (req, res) => {
   const employeeId = Number(req.params.id);
 
   if (!Number.isInteger(employeeId) || employeeId <= 0) {
-    return res.status(400).json({ message: "Ma nhan vien khong hop le." });
+    return res.status(400).json({ message: "Mã nhân viên không hợp lệ." });
   }
 
   if (req.user?.employeeId === employeeId) {
-    return res.status(400).json({ message: "Ban khong the xoa tai khoan cua chinh minh." });
+    return res.status(400).json({ message: "Bạn không thể xóa tài khoản của chính mình." });
   }
 
   try {
@@ -250,13 +250,13 @@ exports.deleteEmployee = async (req, res) => {
     );
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: "Khong tim thay nhan vien de xoa." });
+      return res.status(404).json({ message: "Không tìm thấy nhân viên để xóa." });
     }
 
-    res.json({ message: "Xoa nhan vien thanh cong." });
+    res.json({ message: "Xóa nhân viên thành công." });
   } catch (error) {
     handleDbError(res, error, {
-      referenced: "Nhan vien dang duoc tham chieu trong dat ban, order hoac ca lam, khong the xoa."
+      referenced: "Nhân viên đang được tham chiếu trong đặt bàn, order hoặc ca làm, không thể xóa."
     });
   }
 };

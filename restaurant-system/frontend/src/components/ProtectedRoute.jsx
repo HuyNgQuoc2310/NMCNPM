@@ -7,7 +7,7 @@ function ProtectedRoute({ children, roles }) {
   const location = useLocation();
 
   if (isInitializing) {
-    return <div className="screen-state">Dang xac thuc nguoi dung...</div>;
+    return <div className="screen-state">Đang xác thực người dùng...</div>;
   }
 
   if (!isAuthenticated) {

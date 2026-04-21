@@ -64,7 +64,7 @@ exports.getTableById = async (req, res) => {
     );
 
     if (!rows.length) {
-      return res.status(404).json({ message: "Khong tim thay ban." });
+      return res.status(404).json({ message: "Không tìm thấy bàn." });
     }
 
     res.json(rows[0]);
@@ -77,15 +77,15 @@ exports.addTable = async (req, res) => {
   const payload = normalizeTablePayload(req.body);
 
   if (!payload.tableName) {
-    return res.status(400).json({ message: "Ten ban la bat buoc." });
+    return res.status(400).json({ message: "Tên bàn là bắt buộc." });
   }
 
   if (!Number.isInteger(payload.capacity) || payload.capacity <= 0) {
-    return res.status(400).json({ message: "Suc chua ban phai lon hon 0." });
+    return res.status(400).json({ message: "Sức chứa bàn phải lớn hơn 0." });
   }
 
   if (!allowedStatuses.includes(payload.status)) {
-    return res.status(400).json({ message: "Trang thai ban khong hop le." });
+    return res.status(400).json({ message: "Trạng thái bàn không hợp lệ." });
   }
 
   try {
@@ -108,13 +108,13 @@ exports.addTable = async (req, res) => {
     );
 
     res.status(201).json({
-      message: "Them ban thanh cong.",
+      message: "Thêm bàn thành công.",
       tableId: result.insertId,
       tableCode
     });
   } catch (error) {
     handleDbError(res, error, {
-      duplicate: "Ma ban da ton tai."
+      duplicate: "Mã bàn đã tồn tại."
     });
   }
 };
@@ -123,15 +123,15 @@ exports.updateTable = async (req, res) => {
   const payload = normalizeTablePayload(req.body);
 
   if (!payload.tableName) {
-    return res.status(400).json({ message: "Ten ban la bat buoc." });
+    return res.status(400).json({ message: "Tên bàn là bắt buộc." });
   }
 
   if (!Number.isInteger(payload.capacity) || payload.capacity <= 0) {
-    return res.status(400).json({ message: "Suc chua ban phai lon hon 0." });
+    return res.status(400).json({ message: "Sức chứa bàn phải lớn hơn 0." });
   }
 
   if (!allowedStatuses.includes(payload.status)) {
-    return res.status(400).json({ message: "Trang thai ban khong hop le." });
+    return res.status(400).json({ message: "Trạng thái bàn không hợp lệ." });
   }
 
   try {
@@ -152,10 +152,10 @@ exports.updateTable = async (req, res) => {
     );
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: "Khong tim thay ban de cap nhat." });
+      return res.status(404).json({ message: "Không tìm thấy bàn để cập nhật." });
     }
 
-    res.json({ message: "Cap nhat ban thanh cong." });
+    res.json({ message: "Cập nhật bàn thành công." });
   } catch (error) {
     handleDbError(res, error);
   }
@@ -169,13 +169,13 @@ exports.deleteTable = async (req, res) => {
     );
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: "Khong tim thay ban de xoa." });
+      return res.status(404).json({ message: "Không tìm thấy bàn để xóa." });
     }
 
-    res.json({ message: "Xoa ban thanh cong." });
+    res.json({ message: "Xóa bàn thành công." });
   } catch (error) {
     handleDbError(res, error, {
-      referenced: "Ban dang duoc su dung trong dat ban hoac phien phuc vu, khong the xoa."
+      referenced: "Bàn đang được sử dụng trong đặt bàn hoặc phiên phục vụ, không thể xóa."
     });
   }
 };

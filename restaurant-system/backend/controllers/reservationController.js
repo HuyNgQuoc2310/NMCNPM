@@ -119,42 +119,42 @@ function buildCombinationSuggestions(availableTables, guestCount, combinationRul
 
 async function validateReservationPayload(connection, payload, excludeReservationId = null) {
   if (!Number.isInteger(payload.customerId) || payload.customerId <= 0) {
-    return "Khach hang khong hop le.";
+    return "Khách hàng không hợp lệ.";
   }
 
   if (payload.employeeId !== null && (!Number.isInteger(payload.employeeId) || payload.employeeId <= 0)) {
-    return "Nhan vien khong hop le.";
+    return "Nhân viên không hợp lệ.";
   }
 
   if (!isValidDateString(payload.reservationDate) || !isValidTimeString(payload.reservationTime)) {
-    return "Ngay gio dat ban khong hop le.";
+    return "Ngày giờ đặt bàn không hợp lệ.";
   }
 
   if (!Number.isInteger(payload.numberOfGuests) || payload.numberOfGuests <= 0) {
-    return "So luong khach phai lon hon 0.";
+    return "Số lượng khách phải lớn hơn 0.";
   }
 
   if (!payload.tableIds.length) {
-    return "Can chon it nhat 1 ban.";
+    return "Cần chọn ít nhất 1 bàn.";
   }
 
   if (!allowedStatuses.includes(payload.status)) {
-    return "Trang thai dat ban khong hop le.";
+    return "Trạng thái đặt bàn không hợp lệ.";
   }
 
   const tables = await getTablesByIds(connection, payload.tableIds);
   if (tables.length !== payload.tableIds.length) {
-    return "Co ban duoc chon khong ton tai.";
+    return "Các bàn được chọn không tồn tại.";
   }
 
   const invalidTable = tables.find((table) => !table.is_active || table.status === "unavailable");
   if (invalidTable) {
-    return `Ban ${invalidTable.table_name} hien khong kha dung.`;
+    return `Bàn ${invalidTable.table_name} hiện không khả dụng.`;
   }
 
   const totalCapacity = tables.reduce((sum, table) => sum + table.capacity, 0);
   if (totalCapacity < payload.numberOfGuests) {
-    return "Tong suc chua cua cac ban duoc chon khong du cho so luong khach.";
+    return "Tổng sức chứa của các bàn được chọn không đủ cho số lượng khách.";
   }
 
   const reservedTableIds = await getReservedTableIds(
@@ -166,7 +166,7 @@ async function validateReservationPayload(connection, payload, excludeReservatio
 
   const conflictedTable = tables.find((table) => reservedTableIds.includes(table.table_id));
   if (conflictedTable) {
-    return `Ban ${conflictedTable.table_name} da duoc dat trong khung gio nay.`;
+    return `Bàn ${conflictedTable.table_name} đã được đặt trong khung giờ này.`;
   }
 
   return null;
@@ -301,11 +301,11 @@ exports.getAvailableTables = async (req, res) => {
   const guests = Number(req.query.guests);
 
   if (!isValidDateString(reservationDate) || !isValidTimeString(reservationTime)) {
-    return res.status(400).json({ message: "Ngay gio tim ban khong hop le." });
+    return res.status(400).json({ message: "Ngày giờ tìm bàn không hợp lệ." });
   }
 
   if (!Number.isInteger(guests) || guests <= 0) {
-    return res.status(400).json({ message: "So luong khach phai lon hon 0." });
+    return res.status(400).json({ message: "Số lượng khách phải lớn hơn 0." });
   }
 
   try {
@@ -395,15 +395,15 @@ exports.createReservation = async (req, res) => {
     await connection.commit();
 
     res.status(201).json({
-      message: "Tao phieu dat ban thanh cong.",
+      message: "Tạo phiếu đặt bàn thành công.",
       reservationId,
       reservationCode
     });
   } catch (error) {
     await connection.rollback();
     handleDbError(res, error, {
-      duplicate: "Ma phieu dat ban da ton tai.",
-      foreignKey: "Khach hang, nhan vien hoac ban duoc chon khong hop le."
+      duplicate: "Mã phiếu đặt bàn đã tồn tại.",
+      foreignKey: "Khách hàng, nhân viên hoặc bàn được chọn không hợp lệ."
     });
   } finally {
     connection.release();
@@ -417,7 +417,7 @@ exports.updateReservation = async (req, res) => {
 
   if (!Number.isInteger(reservationId) || reservationId <= 0) {
     connection.release();
-    return res.status(400).json({ message: "Ma phieu dat ban khong hop le." });
+    return res.status(400).json({ message: "Mã phiếu đặt bàn không hợp lệ." });
   }
 
   try {
@@ -427,12 +427,12 @@ exports.updateReservation = async (req, res) => {
     );
 
     if (!existingRows.length) {
-      return res.status(404).json({ message: "Khong tim thay phieu dat ban de cap nhat." });
+      return res.status(404).json({ message: "Không tìm thấy phiếu đặt bàn để cập nhật." });
     }
 
     if (["completed", "cancelled", "no_show"].includes(existingRows[0].status)) {
       return res.status(400).json({
-        message: "Khong the sua phieu dat ban da ket thuc hoac da huy."
+        message: "Không thể sửa phiếu đặt bàn đã kết thúc hoặc đã hủy."
       });
     }
 
@@ -478,11 +478,11 @@ exports.updateReservation = async (req, res) => {
 
     await connection.commit();
 
-    res.json({ message: "Cap nhat phieu dat ban thanh cong." });
+    res.json({ message: "Cập nhật phiếu đặt bàn thành công." });
   } catch (error) {
     await connection.rollback();
     handleDbError(res, error, {
-      foreignKey: "Khach hang, nhan vien hoac ban duoc chon khong hop le."
+      foreignKey: "Khách hàng, nhân viên hoặc bàn được chọn không hợp lệ."
     });
   } finally {
     connection.release();
@@ -497,12 +497,12 @@ exports.checkInReservation = async (req, res) => {
 
   if (!Number.isInteger(reservationId) || reservationId <= 0) {
     connection.release();
-    return res.status(400).json({ message: "Ma phieu dat ban khong hop le." });
+    return res.status(400).json({ message: "Mã phiếu đặt bàn không hợp lệ." });
   }
 
   if (employeeId !== null && (!Number.isInteger(employeeId) || employeeId <= 0)) {
     connection.release();
-    return res.status(400).json({ message: "Nhan vien khong hop le." });
+    return res.status(400).json({ message: "Nhân viên không hợp lệ." });
   }
 
   try {
@@ -516,13 +516,13 @@ exports.checkInReservation = async (req, res) => {
     );
 
     if (!reservationRows.length) {
-      return res.status(404).json({ message: "Khong tim thay phieu dat ban." });
+      return res.status(404).json({ message: "Không tìm thấy phiếu đặt bàn." });
     }
 
     const reservation = reservationRows[0];
     if (!["pending", "confirmed"].includes(reservation.status)) {
       return res.status(400).json({
-        message: "Chi co the check-in phieu dat ban dang cho hoac da xac nhan."
+        message: "Chỉ có thể check-in phiếu đặt bàn đang chờ hoặc đã xác nhận."
       });
     }
 
@@ -538,7 +538,7 @@ exports.checkInReservation = async (req, res) => {
 
     if (existingSessionRows.length) {
       return res.status(409).json({
-        message: "Phieu dat ban nay da co phien phuc vu dang mo."
+        message: "Phiếu đặt bàn này đã có phiên phục vụ đang mở."
       });
     }
 
@@ -554,7 +554,7 @@ exports.checkInReservation = async (req, res) => {
     );
 
     if (!reservationTables.length) {
-      return res.status(400).json({ message: "Phieu dat ban chua gan ban nao." });
+      return res.status(400).json({ message: "Phiếu đặt bàn chưa gắn bàn nào." });
     }
 
     const invalidTable = reservationTables.find((table) => !table.is_active || table.status === "unavailable");
@@ -579,7 +579,7 @@ exports.checkInReservation = async (req, res) => {
     if (activeTableIds.length) {
       const busyTable = reservationTables.find((table) => activeTableIds.includes(table.table_id));
       return res.status(409).json({
-        message: `Ban ${busyTable.table_name} dang co khach.`
+        message: `Bàn ${busyTable.table_name} đang có khách.`
       });
     }
 
@@ -613,7 +613,7 @@ exports.checkInReservation = async (req, res) => {
   } catch (error) {
     await connection.rollback();
     handleDbError(res, error, {
-      foreignKey: "Nhan vien hoac phieu dat ban khong hop le."
+      foreignKey: "Nhân viên hoặc phiếu đặt bàn không hợp lệ."
     });
   } finally {
     connection.release();

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiFetch } from "../services/apiClient";
 import { getCurrentTimeValue, getTodayDateValue } from "../utils/formatters";
@@ -10,6 +10,32 @@ const initialCustomerForm = {
   address: ""
 };
 
+const pageSizeOptions = [5, 10, 20];
+const reservationStatusLabels = {
+  pending: "Chờ xác nhận",
+  confirmed: "Đã xác nhận",
+  checked_in: "Đã check-in",
+  completed: "Hoàn tất",
+  cancelled: "Đã hủy"
+};
+const reservationSortLabels = {
+  latest: "Mới nhất",
+  earliest: "Sớm nhất",
+  customer: "Khách hàng",
+  guests_desc: "Đông khách trước",
+  status: "Trạng thái"
+};
+
+function compareText(valueA = "", valueB = "") {
+  return valueA.localeCompare(valueB, "vi", { sensitivity: "base" });
+}
+
+function compareReservationDateTime(reservationA, reservationB) {
+  const dateTimeA = new Date(`${reservationA.reservation_date}T${reservationA.reservation_time}`);
+  const dateTimeB = new Date(`${reservationB.reservation_date}T${reservationB.reservation_time}`);
+  return dateTimeA - dateTimeB;
+}
+
 function ReservationsPage() {
   const { logout, token, user } = useAuth();
   const [feedback, setFeedback] = useState({ type: "", message: "" });
@@ -19,6 +45,9 @@ function ReservationsPage() {
     status: ""
   });
   const [loadingReservations, setLoadingReservations] = useState(true);
+  const [reservationSortBy, setReservationSortBy] = useState("latest");
+  const [reservationPageSize, setReservationPageSize] = useState(5);
+  const [reservationPage, setReservationPage] = useState(1);
 
   const [slotForm, setSlotForm] = useState({
     date: getTodayDateValue(),
@@ -47,17 +76,21 @@ function ReservationsPage() {
   const tableOptionCount =
     (availableTables?.single_tables?.length || 0) + (availableTables?.combinations?.length || 0);
   const isReservationReady = Boolean(selectedCustomer && selectedTableIds.length);
+  const reservationStatusText = reservationFilters.status
+    ? reservationStatusLabels[reservationFilters.status] || reservationFilters.status
+    : "Tất cả trạng thái";
+  const reservationSortText = reservationSortLabels[reservationSortBy] || reservationSortBy;
 
-  function handleAuthError(error) {
+  const handleAuthError = useCallback((error) => {
     if (error.status === 401) {
       logout();
       return true;
     }
 
     return false;
-  }
+  }, [logout]);
 
-  async function fetchReservations(filters = reservationFilters) {
+  const fetchReservations = useCallback(async (filters) => {
     try {
       setLoadingReservations(true);
       const params = new URLSearchParams();
@@ -79,17 +112,84 @@ function ReservationsPage() {
     } finally {
       setLoadingReservations(false);
     }
-  }
+  }, [handleAuthError, token]);
 
   useEffect(() => {
-    fetchReservations(reservationFilters);
-  }, [token]);
+    async function syncReservations() {
+      await fetchReservations(reservationFilters);
+    }
+
+    void syncReservations();
+  }, [fetchReservations, reservationFilters]);
+
+  const sortedReservations = useMemo(() => {
+    const nextReservations = [...reservations];
+
+    nextReservations.sort((reservationA, reservationB) => {
+      if (reservationSortBy === "earliest") {
+        return compareReservationDateTime(reservationA, reservationB);
+      }
+
+      if (reservationSortBy === "customer") {
+        return compareText(reservationA.customer_name, reservationB.customer_name);
+      }
+
+      if (reservationSortBy === "guests_desc") {
+        return Number(reservationB.number_of_guests) - Number(reservationA.number_of_guests) ||
+          compareReservationDateTime(reservationB, reservationA);
+      }
+
+      if (reservationSortBy === "status") {
+        return compareText(reservationA.status, reservationB.status) ||
+          compareReservationDateTime(reservationB, reservationA);
+      }
+
+      return compareReservationDateTime(reservationB, reservationA);
+    });
+
+    return nextReservations;
+  }, [reservationSortBy, reservations]);
+
+  const reservationTotalPages = Math.max(1, Math.ceil(sortedReservations.length / reservationPageSize));
+  const safeReservationPage = Math.min(reservationPage, reservationTotalPages);
+
+  const paginatedReservations = useMemo(() => {
+    const startIndex = (safeReservationPage - 1) * reservationPageSize;
+    return sortedReservations.slice(startIndex, startIndex + reservationPageSize);
+  }, [reservationPageSize, safeReservationPage, sortedReservations]);
+
+  const visibleReservationStart = sortedReservations.length ? (safeReservationPage - 1) * reservationPageSize + 1 : 0;
+  const visibleReservationEnd = Math.min(safeReservationPage * reservationPageSize, sortedReservations.length);
 
   function handleSlotChange(event) {
     setSlotForm((currentValue) => ({
       ...currentValue,
       [event.target.name]: event.target.value
     }));
+  }
+
+  function handleReservationFilterChange(event) {
+    setReservationPage(1);
+    setReservationFilters((currentValue) => ({
+      ...currentValue,
+      [event.target.name]: event.target.value
+    }));
+  }
+
+  function handleReservationSortChange(event) {
+    setReservationSortBy(event.target.value);
+    setReservationPage(1);
+  }
+
+  function handleReservationPageSizeChange(event) {
+    setReservationPageSize(Number(event.target.value));
+    setReservationPage(1);
+  }
+
+  function resetReservationView() {
+    setReservationSortBy("latest");
+    setReservationPageSize(5);
+    setReservationPage(1);
   }
 
   function selectTableOption(tableIds, label) {
@@ -174,7 +274,7 @@ function ReservationsPage() {
       setSelectedCustomer(customer);
       setCustomerResults((currentValue) => [customer, ...currentValue]);
       setCustomerForm(initialCustomerForm);
-      setFeedback({ type: "success", message: "Da tao khach hang moi va chon vao phieu dat." });
+      setFeedback({ type: "success", message: "Đã tạo khách hàng mới và chọn vào phiếu đặt." });
     } catch (error) {
       if (!handleAuthError(error)) {
         setFeedback({ type: "error", message: error.message });
@@ -188,12 +288,12 @@ function ReservationsPage() {
     event.preventDefault();
 
     if (!selectedCustomer) {
-      setFeedback({ type: "error", message: "Can chon khach hang truoc khi tao phieu dat." });
+      setFeedback({ type: "error", message: "Cần chọn khách hàng trước khi tạo phiếu đặt." });
       return;
     }
 
     if (!selectedTableIds.length) {
-      setFeedback({ type: "error", message: "Can chon ban hoac to hop ban truoc khi tao phieu dat." });
+      setFeedback({ type: "error", message: "Cần chọn bàn hoặc tổ hợp bàn trước khi tạo phiếu đặt." });
       return;
     }
 
@@ -219,8 +319,8 @@ function ReservationsPage() {
       setSelectedTableLabel("");
       setReservationNotes("");
       setAvailableTables(null);
-      setFeedback({ type: "success", message: "Da tao phieu dat ban thanh cong." });
-      await fetchReservations();
+      setFeedback({ type: "success", message: "Đã tạo phiếu đặt bàn thành công." });
+      await fetchReservations(reservationFilters);
     } catch (error) {
       if (!handleAuthError(error)) {
         setFeedback({ type: "error", message: error.message });
@@ -239,12 +339,12 @@ function ReservationsPage() {
         token,
         body: {
           employee_id: user.employee_id,
-          notes: "Check-in tu frontend"
+          notes: "Check-in từ frontend"
         }
       });
 
-      setFeedback({ type: "success", message: "Check-in thanh cong. Ban nay da san sang goi mon." });
-      await fetchReservations();
+      setFeedback({ type: "success", message: "Check-in thành công. Bàn này đã sẵn sàng gọi món." });
+      await fetchReservations(reservationFilters);
     } catch (error) {
       if (!handleAuthError(error)) {
         setFeedback({ type: "error", message: error.message });
@@ -259,30 +359,30 @@ function ReservationsPage() {
       <div className="ops-hero">
         <div className="ops-copy">
           <span className="eyebrow">Reservation flow</span>
-          <h1>Dat ban va check-in</h1>
+          <h1>Đặt bàn và check-in</h1>
           <p>
-            Giao dien nay gom 3 buoc lien mach: tim ban trong, chon khach hang, xac nhan phieu dat va check-in de
-            chuyen sang phien phuc vu.
+            Giao diện này gồm 3 bước liền mạch: tìm bàn trống, chọn khách hàng, xác nhận phiếu đặt và check-in để
+            chuyển sang phiên phục vụ.
           </p>
         </div>
 
         <div className="ops-kpis">
           <article className="ops-kpi">
-            <span>Phieu cho xu ly</span>
+            <span>Phiếu chờ xử lý</span>
             <strong>{pendingReservations}</strong>
-            <small>Dang o trang thai pending hoac confirmed.</small>
+            <small>Đang ở trạng thái pending hoặc confirmed.</small>
           </article>
 
           <article className="ops-kpi">
-            <span>Da check-in</span>
+            <span>Đã check-in</span>
             <strong>{checkedInReservations}</strong>
-            <small>San sang chuyen sang goi mon.</small>
+            <small>Sẵn sàng chuyển sang gọi món.</small>
           </article>
 
           <article className="ops-kpi">
-            <span>Lua chon ban</span>
+            <span>Lựa chọn bàn</span>
             <strong>{tableOptionCount}</strong>
-            <small>Cap nhat sau moi lan tim ban trong.</small>
+            <small>Cập nhật sau mỗi lần tìm bàn trống.</small>
           </article>
         </div>
       </div>
@@ -295,85 +395,96 @@ function ReservationsPage() {
 
       <div className="flow-strip">
         <article className={`flow-step${tableOptionCount ? " active" : ""}`}>
-          <span>Buoc 1</span>
-          <strong>Tim ban</strong>
-          <small>Tra ve ban don va to hop ban cho khung gio mong muon.</small>
+          <span>Bước 1</span>
+          <strong>Tìm bàn</strong>
+          <small>Trả về bàn đơn và tổ hợp bàn cho khung giờ mong muốn.</small>
         </article>
 
         <article className={`flow-step${selectedCustomer ? " active" : ""}`}>
-          <span>Buoc 2</span>
-          <strong>Chon khach hang</strong>
-          <small>Tim nhanh theo SDT hoac tao khach moi ngay tai quay.</small>
+          <span>Bước 2</span>
+          <strong>Chọn khách hàng</strong>
+          <small>Tìm nhanh theo SĐT hoặc tạo khách mới ngay tại quầy.</small>
         </article>
 
         <article className={`flow-step${isReservationReady ? " active" : ""}`}>
-          <span>Buoc 3</span>
-          <strong>Xac nhan phieu</strong>
-          <small>Chot thong tin va check-in de mo luong goi mon.</small>
+          <span>Bước 3</span>
+          <strong>Xác nhận phiếu</strong>
+          <small>Chốt thông tin và check-in để mở luồng gọi món.</small>
         </article>
       </div>
 
-      <div className="app-grid-2">
+      <div className="workspace-grid">
         <div className="content-card stack-card">
           <div className="section-heading">
-            <h3>1. Tim ban trong</h3>
-            <p>Nhap ngay gio va so khach de lay danh sach ban hoac to hop ban kha dung.</p>
+            <h3>1. Tìm bàn trống</h3>
+            <p>Nhập ngày giờ và số khách để lấy danh sách bàn hoặc tổ hợp bàn khả dụng.</p>
           </div>
 
-          <form className="row g-3" onSubmit={handleFindTables}>
-            <div className="col-md-4">
-              <input
-                type="date"
-                name="date"
-                className="form-control"
-                value={slotForm.date}
-                onChange={handleSlotChange}
-                required
-              />
-            </div>
+          <div className="filter-panel reservation-search-panel">
+            <form className="reservation-search-bar" onSubmit={handleFindTables}>
+              <label className="reservation-search-field">
+                <span>Ngày</span>
+                <input
+                  type="date"
+                  name="date"
+                  className="form-control"
+                  value={slotForm.date}
+                  onChange={handleSlotChange}
+                  required
+                />
+              </label>
 
-            <div className="col-md-4">
-              <input
-                type="time"
-                name="time"
-                className="form-control"
-                value={slotForm.time}
-                onChange={handleSlotChange}
-                required
-              />
-            </div>
+              <label className="reservation-search-field">
+                <span>Giờ</span>
+                <input
+                  type="time"
+                  name="time"
+                  className="form-control"
+                  value={slotForm.time}
+                  onChange={handleSlotChange}
+                  required
+                />
+              </label>
 
-            <div className="col-md-2">
-              <input
-                type="number"
-                min="1"
-                name="guests"
-                className="form-control"
-                value={slotForm.guests}
-                onChange={handleSlotChange}
-                required
-              />
-            </div>
+              <label className="reservation-search-field reservation-search-guests">
+                <span>Số khách</span>
+                <input
+                  type="number"
+                  min="1"
+                  name="guests"
+                  className="form-control"
+                  value={slotForm.guests}
+                  onChange={handleSlotChange}
+                  required
+                />
+              </label>
 
-            <div className="col-md-2 d-grid">
-              <button type="submit" className="primary-button" disabled={loadingTables}>
-                {loadingTables ? "Dang tim..." : "Tim ban"}
+              <button type="submit" className="primary-button reservation-search-button" disabled={loadingTables}>
+                {loadingTables ? "Đang tìm..." : "Tìm bàn"}
               </button>
+            </form>
+
+            <div className="table-toolbar-meta">
+              <strong>Khung đặt đang chọn</strong>
+              <span>
+                {slotForm.date} lúc {slotForm.time} cho {slotForm.guests} khách
+                {selectedTableIds.length ? ` | Đã chọn ${selectedTableIds.length} bàn` : " | Chưa chọn bàn"}
+              </span>
             </div>
-          </form>
+          </div>
 
           {availableTables ? (
             <div className="stack-card">
               <div className="soft-banner">
-                <strong>{tableOptionCount} lua chon kha dung</strong>
+                <strong>{tableOptionCount} lựa chọn khả dụng</strong>
                 <span>
-                  {availableTables.single_tables.length} ban don va {availableTables.combinations.length} to hop ban
-                  cho {slotForm.guests} khach.
+                  {availableTables.single_tables.length} bàn đơn và {availableTables.combinations.length} tổ hợp bàn
+                  cho {slotForm.guests} khách.
                 </span>
               </div>
 
               <div>
-                <h4 className="mini-title">Ban don phu hop</h4>
+                <h4 className="mini-title">Bàn đơn phù hợp</h4>
                 <div className="selection-grid">
                   {availableTables.single_tables.length ? (
                     availableTables.single_tables.map((table) => {
@@ -384,22 +495,22 @@ function ReservationsPage() {
                           key={`single-${table.table_id}`}
                           type="button"
                           className={`select-card${isSelected ? " selected" : ""}`}
-                          onClick={() => selectTableOption([table.table_id], `${table.table_name} (${table.capacity} khach)`)}
+                          onClick={() => selectTableOption([table.table_id], `${table.table_name} (${table.capacity} khách)`)}
                         >
                           <strong>{table.table_name}</strong>
-                          <span>{table.capacity} khach</span>
-                          <small>{table.description || "Ban don"}</small>
+                          <span>{table.capacity} khách</span>
+                          <small>{table.description || "Bàn đơn"}</small>
                         </button>
                       );
                     })
                   ) : (
-                    <p className="muted-text">Khong co ban don nao du suc chua.</p>
+                    <p className="muted-text">Không có bàn đơn nào đủ sức chứa.</p>
                   )}
                 </div>
               </div>
 
               <div>
-                <h4 className="mini-title">To hop ban</h4>
+                <h4 className="mini-title">Tổ hợp bàn</h4>
                 <div className="selection-grid">
                   {availableTables.combinations.length ? (
                     availableTables.combinations.map((combo) => {
@@ -415,13 +526,13 @@ function ReservationsPage() {
                           onClick={() => selectTableOption(combo.table_ids, combo.description)}
                         >
                           <strong>{combo.description}</strong>
-                          <span>{combo.total_capacity} khach</span>
+                          <span>{combo.total_capacity} khách</span>
                           <small>{combo.table_names.join(", ")}</small>
                         </button>
                       );
                     })
                   ) : (
-                    <p className="muted-text">Khong co to hop ban nao phu hop voi khung gio nay.</p>
+                    <p className="muted-text">Không có tổ hợp bàn nào phù hợp với khung giờ này.</p>
                   )}
                 </div>
               </div>
@@ -431,32 +542,42 @@ function ReservationsPage() {
 
         <div className="content-card stack-card">
           <div className="section-heading">
-            <h3>2. Tim hoac tao khach hang</h3>
-            <p>Co the tim theo ten, so dien thoai hoac tao nhanh neu khach chua ton tai.</p>
+            <h3>2. Tìm hoặc tạo khách hàng</h3>
+            <p>Có thể tìm theo tên, số điện thoại hoặc tạo nhanh nếu khách chưa tồn tại.</p>
           </div>
 
-          <form className="row g-3" onSubmit={handleSearchCustomers}>
-            <div className="col-md-9">
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Nhap ten, SDT hoac ma khach hang"
-                value={customerKeyword}
-                onChange={(event) => setCustomerKeyword(event.target.value)}
-              />
-            </div>
+          <div className="filter-panel customer-search-panel">
+            <form className="customer-search-bar" onSubmit={handleSearchCustomers}>
+              <label className="customer-search-field">
+                <span>Tìm khách hàng</span>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Nhập tên, SĐT hoặc mã khách hàng"
+                  value={customerKeyword}
+                  onChange={(event) => setCustomerKeyword(event.target.value)}
+                />
+              </label>
 
-            <div className="col-md-3 d-grid">
-              <button type="submit" className="ghost-button" disabled={loadingCustomers}>
-                {loadingCustomers ? "Dang tim..." : "Tim KH"}
+              <button type="submit" className="ghost-button customer-search-button" disabled={loadingCustomers}>
+                {loadingCustomers ? "Đang tìm..." : "Tìm KH"}
               </button>
+            </form>
+
+            <div className="table-toolbar-meta">
+              <strong>{customerResults.length ? `${customerResults.length} kết quả phù hợp` : "Chưa có kết quả tìm kiếm"}</strong>
+              <span>
+                {selectedCustomer
+                  ? `Đang chọn ${selectedCustomer.full_name} | ${selectedCustomer.phone_number}`
+                  : "Có thể chọn khách hàng đã có hoặc tạo mới ngay ở khung bên dưới."}
+              </span>
             </div>
-          </form>
+          </div>
 
           {selectedCustomer ? (
             <div className="picked-banner">
               <div>
-                <span>Khach dang duoc chon</span>
+                <span>Khách đang được chọn</span>
                 <strong>{selectedCustomer.full_name}</strong>
               </div>
               <small>{selectedCustomer.phone_number}</small>
@@ -473,101 +594,112 @@ function ReservationsPage() {
               >
                 <strong>{customer.full_name}</strong>
                 <span>{customer.phone_number}</span>
-                <small>{customer.email || customer.address || "Khach hang da luu"}</small>
+                <small>{customer.email || customer.address || "Khách hàng đã lưu"}</small>
               </button>
             ))}
           </div>
 
-          <form className="row g-3" onSubmit={handleCreateCustomer}>
-            <div className="col-md-6">
-              <input
-                type="text"
-                name="full_name"
-                className="form-control"
-                placeholder="Ten khach hang"
-                value={customerForm.full_name}
-                onChange={handleCustomerFormChange}
-                required
-              />
+          <div className="panel-card stack-card reservation-subpanel">
+            <div className="section-heading">
+              <h3>Tạo nhanh khách mới</h3>
+              <p>Nếu khách chưa tồn tại, nhập nhanh thông tin cơ bản và gắn ngay vào phiếu đặt.</p>
             </div>
 
-            <div className="col-md-6">
-              <input
-                type="text"
-                name="phone_number"
-                className="form-control"
-                placeholder="So dien thoai"
-                value={customerForm.phone_number}
-                onChange={handleCustomerFormChange}
-                required
-              />
-            </div>
+            <form className="filter-panel-grid" onSubmit={handleCreateCustomer}>
+              <label className="filter-field filter-col-6">
+                <span>Tên khách hàng</span>
+                <input
+                  type="text"
+                  name="full_name"
+                  className="form-control"
+                  placeholder="Nhập tên khách hàng"
+                  value={customerForm.full_name}
+                  onChange={handleCustomerFormChange}
+                  required
+                />
+              </label>
 
-            <div className="col-md-6">
-              <input
-                type="email"
-                name="email"
-                className="form-control"
-                placeholder="Email"
-                value={customerForm.email}
-                onChange={handleCustomerFormChange}
-              />
-            </div>
+              <label className="filter-field filter-col-6">
+                <span>Số điện thoại</span>
+                <input
+                  type="text"
+                  name="phone_number"
+                  className="form-control"
+                  placeholder="Nhập số điện thoại"
+                  value={customerForm.phone_number}
+                  onChange={handleCustomerFormChange}
+                  required
+                />
+              </label>
 
-            <div className="col-md-6">
-              <input
-                type="text"
-                name="address"
-                className="form-control"
-                placeholder="Dia chi"
-                value={customerForm.address}
-                onChange={handleCustomerFormChange}
-              />
-            </div>
+              <label className="filter-field filter-col-6">
+                <span>Email</span>
+                <input
+                  type="email"
+                  name="email"
+                  className="form-control"
+                  placeholder="Nhập email nếu có"
+                  value={customerForm.email}
+                  onChange={handleCustomerFormChange}
+                />
+              </label>
 
-            <div className="col-12 d-grid">
-              <button type="submit" className="ghost-button" disabled={creatingCustomer}>
-                {creatingCustomer ? "Dang tao..." : "Them KH moi va chon vao phieu"}
-              </button>
-            </div>
-          </form>
+              <label className="filter-field filter-col-6">
+                <span>Địa chỉ</span>
+                <input
+                  type="text"
+                  name="address"
+                  className="form-control"
+                  placeholder="Nhập địa chỉ nếu có"
+                  value={customerForm.address}
+                  onChange={handleCustomerFormChange}
+                />
+              </label>
+
+              <div className="filter-field filter-col-12">
+                <button type="submit" className="ghost-button" disabled={creatingCustomer}>
+                  {creatingCustomer ? "Đang tạo..." : "Thêm KH mới và chọn vào phiếu"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
 
       <div className="content-card stack-card">
         <div className="section-heading">
-          <h3>3. Xac nhan phieu dat</h3>
-          <p>Chot khach hang, ban da chon va tao phieu dat moi.</p>
+          <h3>3. Xác nhận phiếu đặt</h3>
+          <p>Chốt khách hàng, bàn đã chọn và tạo phiếu đặt mới.</p>
         </div>
 
         <div className="summary-grid">
           <div className={`summary-box${selectedCustomer ? " summary-box-accent" : ""}`}>
-            <span>Khach hang</span>
-            <strong>{selectedCustomer ? selectedCustomer.full_name : "Chua chon"}</strong>
-            <small>{selectedCustomer ? selectedCustomer.phone_number : "Hay tim hoac tao khach hang."}</small>
+            <span>Khách hàng</span>
+            <strong>{selectedCustomer ? selectedCustomer.full_name : "Chưa chọn"}</strong>
+            <small>{selectedCustomer ? selectedCustomer.phone_number : "Hãy tìm hoặc tạo khách hàng."}</small>
           </div>
 
           <div className={`summary-box${selectedTableIds.length ? " summary-box-accent" : ""}`}>
-            <span>Ban duoc chon</span>
-            <strong>{selectedTableLabel || "Chua chon ban"}</strong>
-            <small>{selectedTableIds.length ? `Table IDs: ${selectedTableIds.join(", ")}` : "Tim ban trong truoc."}</small>
+            <span>Bàn được chọn</span>
+            <strong>{selectedTableLabel || "Chưa chọn bàn"}</strong>
+            <small>{selectedTableIds.length ? `Table IDs: ${selectedTableIds.join(", ")}` : "Tìm bàn trống trước."}</small>
           </div>
 
           <div className="summary-box">
-            <span>Lich dat</span>
+            <span>Lịch đặt</span>
             <strong>
               {slotForm.date} {slotForm.time}
             </strong>
-            <small>{slotForm.guests} khach</small>
+            <small>{slotForm.guests} khách</small>
           </div>
         </div>
 
         <div className="soft-banner">
-          <strong>{isReservationReady ? "San sang tao phieu dat" : "Phieu chua day du thong tin"}</strong>
+          <strong>{isReservationReady ? "Sẵn sàng tạo phiếu đặt" : "Phiếu chưa đầy đủ thông tin"}</strong>
           <span>
             {isReservationReady
-              ? "Ban da chon du khach hang va ban. Co the luu phieu dat ngay."
-              : "Can chon ca khach hang va ban truoc khi xac nhan."}
+              ? "Bạn đã chọn đủ khách hàng và bàn. Có thể lưu phiếu đặt ngay."
+              : "Cần chọn cả khách hàng và bàn trước khi xác nhận."}
           </span>
         </div>
 
@@ -576,7 +708,7 @@ function ReservationsPage() {
             <input
               type="text"
               className="form-control"
-              placeholder="Ghi chu cho phieu dat"
+              placeholder="Ghi chú cho phiếu đặt"
               value={reservationNotes}
               onChange={(event) => setReservationNotes(event.target.value)}
             />
@@ -584,7 +716,7 @@ function ReservationsPage() {
 
           <div className="col-md-2 d-grid">
             <button type="submit" className="primary-button" disabled={submittingReservation}>
-              {submittingReservation ? "Dang luu..." : "Tao phieu"}
+              {submittingReservation ? "Đang lưu..." : "Tạo phiếu"}
             </button>
           </div>
         </form>
@@ -592,90 +724,177 @@ function ReservationsPage() {
 
       <div className="content-card stack-card">
         <div className="section-heading">
-          <h3>Danh sach dat ban</h3>
-          <p>Co the loc theo ngay va check-in nhanh de chuyen sang phien phuc vu.</p>
+          <h3>Danh sách đặt bàn</h3>
+          <p>Có thể lọc theo ngày và check-in nhanh để chuyển sang phiên phục vụ.</p>
         </div>
 
         <div className="micro-stats">
           <div className="micro-stat">
-            <span>Tong phieu</span>
+            <span>Tổng phiếu</span>
             <strong>{reservations.length}</strong>
           </div>
 
           <div className="micro-stat">
-            <span>Cho check-in</span>
+            <span>Chờ check-in</span>
             <strong>{pendingReservations}</strong>
           </div>
 
           <div className="micro-stat">
-            <span>Da vao ban</span>
+            <span>Đã vào bàn</span>
             <strong>{checkedInReservations}</strong>
           </div>
         </div>
 
-        <form
-          className="row g-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            fetchReservations();
-          }}
-        >
-          <div className="col-md-4">
-            <input
-              type="date"
-              className="form-control"
-              value={reservationFilters.date}
-              onChange={(event) =>
-                setReservationFilters((currentValue) => ({ ...currentValue, date: event.target.value }))
-              }
-            />
+        <div className="filter-panel">
+          <div className="filter-panel-header">
+            <div className="section-heading">
+              <h3>Bộ lọc và sắp xếp</h3>
+              <p>Sắp xếp theo lịch đặt, khách hàng, số khách hoặc trạng thái và chia trang cho danh sách lớn.</p>
+            </div>
           </div>
 
-          <div className="col-md-4">
-            <select
-              className="form-select"
-              value={reservationFilters.status}
-              onChange={(event) =>
-                setReservationFilters((currentValue) => ({ ...currentValue, status: event.target.value }))
-              }
-            >
-              <option value="">Tat ca trang thai</option>
-              <option value="pending">pending</option>
-              <option value="confirmed">confirmed</option>
-              <option value="checked_in">checked_in</option>
-              <option value="completed">completed</option>
-              <option value="cancelled">cancelled</option>
-            </select>
+          <div className="soft-banner">
+            <div>
+              <strong>Bộ lọc đang áp dụng</strong>
+              <span>
+                {reservationFilters.date || "Tất cả ngày"} | {reservationStatusText} | {reservationSortText} |{" "}
+                {reservationPageSize} dòng / trang
+              </span>
+            </div>
+
+            <span>{sortedReservations.length} phiếu đặt</span>
           </div>
 
-          <div className="col-md-4 d-grid">
-            <button type="submit" className="ghost-button">
-              Loc danh sach
-            </button>
+          <div className="filter-chip-row">
+            <div className="filter-chip">
+              <span>Ngày</span>
+              <strong>{reservationFilters.date || "Tất cả ngày"}</strong>
+            </div>
+
+            <div className="filter-chip">
+              <span>Trạng thái</span>
+              <strong>{reservationStatusText}</strong>
+            </div>
+
+            <div className="filter-chip">
+              <span>Sắp xếp</span>
+              <strong>{reservationSortText}</strong>
+            </div>
+
+            <div className="filter-chip">
+              <span>Mỗi trang</span>
+              <strong>{reservationPageSize} dòng</strong>
+            </div>
           </div>
-        </form>
+
+          <form
+            className="reservation-list-filter-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void fetchReservations(reservationFilters);
+            }}
+          >
+            <div className="reservation-list-filter-bar">
+              <label className="reservation-list-filter-field">
+                <span>Ngày đặt</span>
+                <input
+                  type="date"
+                  name="date"
+                  className="form-control"
+                  value={reservationFilters.date}
+                  onChange={handleReservationFilterChange}
+                />
+              </label>
+
+              <label className="reservation-list-filter-field">
+                <span>Trạng thái</span>
+                <select
+                  name="status"
+                  className="form-select"
+                  value={reservationFilters.status}
+                  onChange={handleReservationFilterChange}
+                >
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="pending">Chờ xác nhận</option>
+                  <option value="confirmed">Đã xác nhận</option>
+                  <option value="checked_in">Đã check-in</option>
+                  <option value="completed">Hoàn tất</option>
+                  <option value="cancelled">Đã hủy</option>
+                </select>
+              </label>
+
+              <label className="reservation-list-filter-field">
+                <span>Sắp xếp</span>
+                <select className="form-select" value={reservationSortBy} onChange={handleReservationSortChange}>
+                  <option value="latest">Mới nhất</option>
+                  <option value="earliest">Sớm nhất</option>
+                  <option value="customer">Khách hàng</option>
+                  <option value="guests_desc">Đông khách trước</option>
+                  <option value="status">Trạng thái</option>
+                </select>
+              </label>
+
+              <label className="reservation-list-filter-field reservation-list-filter-compact">
+                <span>Mỗi trang</span>
+                <select className="form-select" value={reservationPageSize} onChange={handleReservationPageSizeChange}>
+                  {pageSizeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option} dòng
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="reservation-list-filter-actions">
+              <button type="submit" className="primary-button">
+                Làm mới danh sách
+              </button>
+
+              <button type="button" className="ghost-button" onClick={resetReservationView}>
+                Đặt lại view
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div className="table-toolbar">
+          <div className="table-toolbar-meta">
+            <strong>Khung hiển thị</strong>
+            <span>
+              {visibleReservationStart}-{visibleReservationEnd} / {sortedReservations.length} phiếu đặt
+            </span>
+          </div>
+
+          <div className="table-toolbar-meta align-end">
+            <strong>Trang</strong>
+            <span>
+              {safeReservationPage}/{reservationTotalPages}
+            </span>
+          </div>
+        </div>
 
         {loadingReservations ? (
           <div className="screen-state" style={{ minHeight: 220 }}>
-            Dang tai phieu dat...
+            Đang tải phiếu đặt...
           </div>
         ) : (
           <div className="table-shell">
             <table className="table table-hover align-middle">
               <thead>
                 <tr>
-                  <th>Ma phieu</th>
-                  <th>Khach hang</th>
-                  <th>Ngay gio</th>
-                  <th>Ban</th>
-                  <th>Trang thai</th>
+                  <th>Mã phiếu</th>
+                  <th>Khách hàng</th>
+                  <th>Ngày giờ</th>
+                  <th>Bàn</th>
+                  <th>Trạng thái</th>
                   <th></th>
                 </tr>
               </thead>
 
               <tbody>
-                {reservations.length ? (
-                  reservations.map((reservation) => {
+                {paginatedReservations.length ? (
+                  paginatedReservations.map((reservation) => {
                     const canCheckIn = ["pending", "confirmed"].includes(reservation.status);
 
                     return (
@@ -687,11 +906,13 @@ function ReservationsPage() {
                         </td>
                         <td>
                           {reservation.reservation_date} {reservation.reservation_time}
-                          <div className="table-subtext">{reservation.number_of_guests} khach</div>
+                          <div className="table-subtext">{reservation.number_of_guests} khách</div>
                         </td>
                         <td>{reservation.table_names}</td>
                         <td>
-                          <span className={`status-pill status-${reservation.status}`}>{reservation.status}</span>
+                          <span className={`status-pill status-${reservation.status}`}>
+                            {reservationStatusLabels[reservation.status] || reservation.status}
+                          </span>
                         </td>
                         <td>
                           {canCheckIn ? (
@@ -701,7 +922,7 @@ function ReservationsPage() {
                               onClick={() => handleCheckIn(reservation.reservation_id)}
                               disabled={checkingInId === reservation.reservation_id}
                             >
-                              {checkingInId === reservation.reservation_id ? "Dang check-in..." : "Check-in"}
+                              {checkingInId === reservation.reservation_id ? "Đang check-in..." : "Check-in"}
                             </button>
                           ) : (
                             <span className="table-subtext">--</span>
@@ -713,7 +934,7 @@ function ReservationsPage() {
                 ) : (
                   <tr>
                     <td colSpan="6" className="text-center py-4">
-                      Khong co phieu dat nao trong bo loc hien tai.
+                      Không có phiếu đặt nào trong bộ lọc hiện tại.
                     </td>
                   </tr>
                 )}
@@ -721,6 +942,37 @@ function ReservationsPage() {
             </table>
           </div>
         )}
+
+        <div className="pagination-bar">
+          <div className="table-toolbar-meta">
+            <strong>Điều hướng trang</strong>
+            <span>Danh sách đặt bàn sẽ gọn hơn khi bạn lọc theo ngày nhưng vẫn có thể mở rộng khi cần soát nhiều ca.</span>
+          </div>
+
+          <div className="pagination-actions">
+            <button
+              type="button"
+              className="ghost-button button-sm"
+              onClick={() => setReservationPage((currentValue) => Math.max(1, currentValue - 1))}
+              disabled={safeReservationPage === 1}
+            >
+              Trang trước
+            </button>
+
+            <span className="pagination-chip">
+              {safeReservationPage}/{reservationTotalPages}
+            </span>
+
+            <button
+              type="button"
+              className="ghost-button button-sm"
+              onClick={() => setReservationPage((currentValue) => Math.min(reservationTotalPages, currentValue + 1))}
+              disabled={safeReservationPage === reservationTotalPages}
+            >
+              Trang sau
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   );

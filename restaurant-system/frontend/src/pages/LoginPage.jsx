@@ -41,30 +41,55 @@ function LoginPage() {
       <section className="login-side">
         <div className="login-brand">
           <span className="eyebrow">Auth + Role</span>
-          <h1 className="login-title">Dang nhap theo role de van hanh dung quyen.</h1>
+          <h1 className="login-title">Đăng nhập theo role để vận hành đúng quyền.</h1>
           <p className="login-copy">
-            Admin duoc quan tri menu, ban an va nhan vien. Staff chi nhin thay cong viec van hanh nha hang va cac man
-            hinh phuc vu.
+            Admin được quản trị menu, bàn ăn và nhân viên. Staff chỉ nhìn thấy công việc vận hành nhà hàng và các màn
+            hình phục vụ.
           </p>
         </div>
 
         <div className="login-notes">
           <article className="note-card">
             <h3>Role admin</h3>
-            <p>Quan ly du lieu goc, tai khoan nhan vien va cac khu vuc quan tri he thong.</p>
+            <p>Quản lý dữ liệu gốc, tài khoản nhân viên và các khu vực quản trị hệ thống.</p>
           </article>
 
           <article className="note-card">
             <h3>Role staff</h3>
-            <p>Xu ly khach hang, dat ban, phuc vu order va thanh toan theo luong van hanh.</p>
+            <p>Xử lý khách hàng, đặt bàn, phục vụ order và thanh toán theo luồng vận hành.</p>
+          </article>
+
+          <article className="note-card">
+            <h3>Role reports</h3>
+            <p>Admin có thêm khu báo cáo để xem món ăn bán chạy, khung giờ và doanh thu theo tháng.</p>
+          </article>
+        </div>
+
+        <div className="login-metrics">
+          <article className="login-metric">
+            <span>Auth</span>
+            <strong>JWT secured</strong>
+            <small>Frontend và backend đã đồng bộ token đăng nhập.</small>
+          </article>
+
+          <article className="login-metric">
+            <span>Workspace</span>
+            <strong>Role-based UI</strong>
+            <small>Menu và route sẽ tự động đổi theo admin hoặc staff.</small>
+          </article>
+
+          <article className="login-metric">
+            <span>Demo</span>
+            <strong>End-to-end</strong>
+            <small>Có thể đi từ đặt bàn đến thanh toán và báo cáo trong cùng app.</small>
           </article>
         </div>
       </section>
 
       <section className="login-panel">
         <div className="login-card">
-          <h2>Dang nhap he thong</h2>
-          <p>Su dung tai khoan da seed trong MySQL de vao dung giao dien theo quyen.</p>
+          <h2>Đăng nhập hệ thống</h2>
+          <p>Sử dụng tài khoản đã seed trong MySQL để vào đúng giao diện theo quyền.</p>
 
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="field-stack">
@@ -75,7 +100,7 @@ function LoginPage() {
                 value={credentials.username}
                 onChange={handleChange}
                 autoComplete="username"
-                placeholder="Nhap username"
+                placeholder="Nhập username"
               />
             </div>
 
@@ -88,14 +113,14 @@ function LoginPage() {
                 value={credentials.password}
                 onChange={handleChange}
                 autoComplete="current-password"
-                placeholder="Nhap password"
+                placeholder="Nhập password"
               />
             </div>
 
             {error ? <div className="alert-message alert-error">{error}</div> : null}
 
             <button type="submit" className="primary-button" disabled={submitting}>
-              {submitting ? "Dang dang nhap..." : "Dang nhap"}
+              {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </button>
           </form>
 
@@ -110,7 +135,7 @@ function LoginPage() {
                 className="ghost-button"
                 onClick={() => setCredentials({ username: "admin", password: "Admin@123" })}
               >
-                Dung mau nay
+                Dùng mẫu này
               </button>
             </div>
 
@@ -124,7 +149,7 @@ function LoginPage() {
                 className="ghost-button"
                 onClick={() => setCredentials({ username: "staff01", password: "Staff@123" })}
               >
-                Dung mau nay
+                Dùng mẫu này
               </button>
             </div>
           </div>

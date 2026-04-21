@@ -13,6 +13,7 @@ const reservationRoutes = require("./routes/reservationRoutes");
 const sessionRoutes = require("./routes/sessionRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 const port = process.env.PORT || 5000;
 
@@ -33,6 +34,7 @@ app.use("/api/reservations", authenticateToken, reservationRoutes);
 app.use("/api/sessions", authenticateToken, sessionRoutes);
 app.use("/api/orders", authenticateToken, orderRoutes);
 app.use("/api/payments", authenticateToken, paymentRoutes);
+app.use("/api/reports", authenticateToken, reportRoutes);
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

@@ -274,7 +274,7 @@ function CustomerManager() {
         </div>
       ) : null}
 
-      <div className="app-grid-2">
+      <div className="workspace-grid">
         <div className="content-card stack-card">
           <div className="toolbar-inline">
             <div className="section-heading">

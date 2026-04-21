@@ -158,7 +158,7 @@ exports.getSessionById = async (req, res) => {
     );
 
     if (!rows.length) {
-      return res.status(404).json({ message: "Khong tim thay phien phuc vu." });
+      return res.status(404).json({ message: "Không tìm thấy phiên phục vụ." });
     }
 
     const [tables] = await db.query(
@@ -207,15 +207,15 @@ exports.createWalkInSession = async (req, res) => {
   const notes = String(req.body.notes || "").trim() || null;
 
   if (!tableIds.length) {
-    return res.status(400).json({ message: "Can chon it nhat 1 ban de mo phien phuc vu." });
+    return res.status(400).json({ message: "Cần chọn ít nhất 1 bàn để mở phiên phục vụ." });
   }
 
   if (!Number.isInteger(guestCount) || guestCount <= 0) {
-    return res.status(400).json({ message: "So luong khach phai lon hon 0." });
+    return res.status(400).json({ message: "Số lượng khách phải lớn hơn 0." });
   }
 
   if (employeeId !== null && (!Number.isInteger(employeeId) || employeeId <= 0)) {
-    return res.status(400).json({ message: "Nhan vien khong hop le." });
+    return res.status(400).json({ message: "Nhân viên không hợp lệ." });
   }
 
   const connection = await db.getConnection();
@@ -223,23 +223,23 @@ exports.createWalkInSession = async (req, res) => {
   try {
     const tables = await getTablesByIds(connection, tableIds);
     if (tables.length !== tableIds.length) {
-      return res.status(400).json({ message: "Co ban duoc chon khong ton tai." });
+      return res.status(400).json({ message: "Có bàn được chọn không tồn tại." });
     }
 
     const invalidTable = tables.find((table) => !table.is_active || table.status === "unavailable");
     if (invalidTable) {
-      return res.status(400).json({ message: `Ban ${invalidTable.table_name} hien khong kha dung.` });
+      return res.status(400).json({ message: `Bàn ${invalidTable.table_name} hiện không khả dụng.` });
     }
 
     const busyTableIds = await getBusyTableIds(connection, tableIds);
     if (busyTableIds.length) {
       const busyTable = tables.find((table) => busyTableIds.includes(table.table_id));
-      return res.status(409).json({ message: `Ban ${busyTable.table_name} dang co khach.` });
+      return res.status(409).json({ message: `Bàn ${busyTable.table_name} đang có khách.` });
     }
 
     const totalCapacity = tables.reduce((sum, table) => sum + table.capacity, 0);
     if (totalCapacity < guestCount) {
-      return res.status(400).json({ message: "Tong suc chua ban khong du cho so luong khach." });
+      return res.status(400).json({ message: "Tổng sức chứa của các bàn không đủ cho số lượng khách." });
     }
 
     await connection.beginTransaction();
@@ -252,14 +252,14 @@ exports.createWalkInSession = async (req, res) => {
     await connection.commit();
 
     res.status(201).json({
-      message: "Mo phien phuc vu thanh cong.",
+      message: "Mở phiên phục vụ thành công.",
       sessionId: session.sessionId,
       sessionCode: session.sessionCode
     });
   } catch (error) {
     await connection.rollback();
     handleDbError(res, error, {
-      foreignKey: "Nhan vien hoac ban duoc chon khong hop le."
+      foreignKey: "Nhân viên hoặc bàn được chọn không hợp lệ."
     });
   } finally {
     connection.release();
