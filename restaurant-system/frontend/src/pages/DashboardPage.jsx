@@ -87,15 +87,11 @@ function DashboardPage() {
           <div>
             <span className="page-kicker">Workspace</span>
             <h1 className="page-intro-title">Xin chào {user?.full_name || user?.username}.</h1>
-            <p className="page-intro-copy">
-              Đây là khu tổng hợp nhanh để nhìn ngay quyền hiện tại, trạng thái đăng nhập và những module quan trọng nhất
-              trong ca làm việc.
-            </p>
           </div>
 
-          <div className="page-mini-grid">
+          <div className="page-mini-grid dashboard-mini-grid">
             {stats.map((item) => (
-              <article className="page-mini-card" key={item.label}>
+              <article className="page-mini-card dashboard-mini-card" key={item.label}>
                 <span>{item.label}</span>
                 <strong>{item.value}</strong>
                 <small>{item.description}</small>
@@ -105,11 +101,6 @@ function DashboardPage() {
         </article>
 
         <aside className="page-side-card">
-          <div>
-            <h3>Khu tổng hợp</h3>
-            <p>Màn này nên đóng vai trò bảng điều hướng ngắn gọn, không lặp lại dữ liệu nhưng vẫn đủ đầy trên desktop.</p>
-          </div>
-
           <div className="page-side-list">
             <article className="page-side-item">
               <strong>Luồng vận hành</strong>

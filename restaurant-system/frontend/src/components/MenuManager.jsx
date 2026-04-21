@@ -334,7 +334,6 @@ function MenuManager({ canManage }) {
               <div className="table-toolbar filter-toolbar">
                 <div className="table-toolbar-meta">
                   <strong>{sortedMenu.length} món ăn</strong>
-                  <span>Sắp xếp theo tên, giá, loại món và chia trang để bảng menu dễ demo hơn khi dữ liệu tăng.</span>
                 </div>
 
                 <div className="table-controls-inline">
@@ -375,7 +374,6 @@ function MenuManager({ canManage }) {
           <div className="panel-card stack-card">
             <div className="section-heading">
               <h3>{editingItemId ? "Cập nhật món ăn" : "Thêm món ăn"}</h3>
-              <p>Admin có thể chỉnh sửa giá, mô tả, ảnh và trạng thái phục vụ ngay trên form này.</p>
             </div>
 
             <form className="row g-3" onSubmit={handleSubmit}>
@@ -482,7 +480,6 @@ function MenuManager({ canManage }) {
         <div className="table-toolbar">
           <div className="section-heading">
             <h3>Danh sách món ăn</h3>
-            <p>Bảng menu đã có sắp xếp và chia trang để bạn có thể demo nhanh ngay cả khi số món ăn tăng lên.</p>
           </div>
 
           <div className="table-toolbar-meta align-end">
@@ -561,11 +558,6 @@ function MenuManager({ canManage }) {
         )}
 
         <div className="pagination-bar">
-          <div className="table-toolbar-meta">
-            <strong>Điều hướng trang</strong>
-            <span>Đổi số dòng trên mỗi trang khi bạn muốn demo menu ngắn hơn hoặc đầy đủ hơn.</span>
-          </div>
-
           <div className="pagination-actions">
             <button
               type="button"

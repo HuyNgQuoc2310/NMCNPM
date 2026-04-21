@@ -64,16 +64,13 @@ function AppShell() {
   const { logout, user } = useAuth();
   const availableItems = navigationItems.filter((item) => item.roles.includes(user?.role));
   const currentItem = availableItems.find((item) => item.to === location.pathname);
+  const isDashboardPage = location.pathname === "/";
 
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
         <div className="sidebar-brand">
-          <span className="eyebrow">Restaurant System</span>
-          <h1>Nhà hàng Phố Bàn</h1>
-          <p>
-            Giao diện đã nối với login, token và role. Staff thấy menu phục vụ, admin thấy thêm khu quản trị.
-          </p>
+          <h1>HỆ THỐNG QUẢN LÍ ĐẶT BÀN VÀ GỌI MÓN TRONG MỘT NHÀ HÀNG</h1>
         </div>
 
         <nav className="sidebar-nav">
@@ -94,13 +91,14 @@ function AppShell() {
       <main className="app-content">
         <header className="topbar">
           <div>
-            <h2>{currentItem?.label || "Hệ thống quản lý nhà hàng"}</h2>
-            <p>Đang đăng nhập với tài khoản {user?.username}. Menu và route hiện tại đang phân theo role.</p>
+            <h2 className={isDashboardPage ? "topbar-title topbar-title-dashboard" : "topbar-title"}>
+              {currentItem?.label || "Hệ thống quản lý nhà hàng"}
+            </h2>
           </div>
 
           <div className="topbar-actions">
-            <span className="role-badge">{user?.role}</span>
-            <button type="button" className="ghost-button" onClick={logout}>
+            <span className="role-badge topbar-role-chip">{user?.role}</span>
+            <button type="button" className="ghost-button topbar-logout-button" onClick={logout}>
               Đăng xuất
             </button>
           </div>

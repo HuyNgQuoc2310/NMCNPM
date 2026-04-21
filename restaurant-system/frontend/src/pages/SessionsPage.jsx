@@ -372,35 +372,52 @@ function SessionsPage() {
 
   return (
     <section className="workspace-grid">
-      <div className="ops-hero">
-        <div className="ops-copy">
-          <span className="eyebrow">Service flow</span>
-          <h1>Phiên phục vụ và gọi món</h1>
-          <p>
-            Màn này được tối ưu cho thao tác tại sảnh: mở phiên cho khách vãng lai, chọn bàn đang phục vụ, tạo order
-            và cập nhật món ngay trong một workspace.
-          </p>
-        </div>
+      <div className="page-intro-grid">
+        <article className="page-intro-card">
+          <div>
+            <span className="page-kicker">Service flow</span>
+            <h1 className="page-intro-title flow-page-title">Phiên phục vụ và gọi món</h1>
+          </div>
 
-        <div className="ops-kpis">
-          <article className="ops-kpi">
-            <span>Phiên đang mở</span>
-            <strong>{openSessionsCount}</strong>
-            <small>Số bàn đang phục vụ trong hệ thống.</small>
-          </article>
+          <div className="page-mini-grid">
+            <article className="page-mini-card">
+              <span>Phiên đang mở</span>
+              <strong>{openSessionsCount}</strong>
+              <small>Số bàn đang phục vụ trong hệ thống.</small>
+            </article>
 
-          <article className="ops-kpi">
-            <span>Đã có order</span>
-            <strong>{sessionsWithOrderCount}</strong>
-            <small>Sẵn sàng chuyển sang thanh toán.</small>
-          </article>
+            <article className="page-mini-card">
+              <span>Đã có order</span>
+              <strong>{sessionsWithOrderCount}</strong>
+              <small>Sẵn sàng chuyển sang thanh toán.</small>
+            </article>
 
-          <article className="ops-kpi">
-            <span>Bàn sẵn sàng</span>
-            <strong>{availableWalkInTables.length}</strong>
-            <small>Dùng cho khách vãng lai vào trực tiếp.</small>
-          </article>
-        </div>
+            <article className="page-mini-card">
+              <span>Bàn sẵn sàng</span>
+              <strong>{availableWalkInTables.length}</strong>
+              <small>Dùng cho khách vãng lai vào trực tiếp.</small>
+            </article>
+          </div>
+        </article>
+
+        <aside className="page-side-card">
+          <div className="page-side-list">
+            <article className="page-side-item">
+              <strong>Mở phiên</strong>
+              <span>Chọn bàn cho khách vãng lai hoặc nhận phiên đã check-in từ luồng đặt bàn.</span>
+            </article>
+
+            <article className="page-side-item">
+              <strong>Chọn session</strong>
+              <span>Tập trung vào đúng bàn đang phục vụ để thao tác nhanh trong giờ cao điểm.</span>
+            </article>
+
+            <article className="page-side-item">
+              <strong>Cập nhật order</strong>
+              <span>Thêm món, đổi số lượng và chuẩn bị dữ liệu trước khi chuyển sang thanh toán.</span>
+            </article>
+          </div>
+        </aside>
       </div>
 
       {feedback.message ? (
@@ -566,11 +583,6 @@ function SessionsPage() {
           )}
 
           <div className="pagination-bar">
-            <div className="table-toolbar-meta">
-              <strong>Điều hướng trang</strong>
-              <span>Đổi số session mỗi trang để giữ mạnh tốc độ thao tác tại sảnh khi giờ cao điểm.</span>
-            </div>
-
             <div className="pagination-actions">
               <button
                 type="button"

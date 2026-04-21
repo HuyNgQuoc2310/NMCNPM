@@ -9,9 +9,6 @@ function EmployeesPage() {
           <div>
             <span className="page-kicker">Admin workspace</span>
             <h1 className="page-intro-title">Quản lý nhân viên</h1>
-            <p className="page-intro-copy">
-              Chỉ admin mới có quyền.
-            </p>
           </div>
           <div className="page-mini-grid">
             <article className="page-mini-card">
@@ -29,11 +26,6 @@ function EmployeesPage() {
         </article>
 
         <aside className="page-side-card">
-          <div>
-            <h3>Trung tâm</h3>
-            <p>Màn này cần gọn nhưng chắc, vì đây là nơi admin thao tác với tài khoản và quyền hạn nhạy cảm nhất.</p>
-          </div>
-
           <div className="page-side-list">
             <article className="page-side-item">
               <strong>Quyền hạn</strong>

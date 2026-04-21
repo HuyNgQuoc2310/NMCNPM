@@ -217,35 +217,52 @@ function PaymentsPage() {
 
   return (
     <section className="workspace-grid">
-      <div className="ops-hero">
-        <div className="ops-copy">
-          <span className="eyebrow">Payment flow</span>
-          <h1>Thanh toán và đóng bàn</h1>
-          <p>
-            Luồng này tập trung vào việc chọn order đang mở, đối chiếu hóa đơn và xác nhận thanh toán bằng một giao
-            diện rõ ràng, dễ trình chiếu và thao tác nhanh tại quầy.
-          </p>
-        </div>
+      <div className="page-intro-grid">
+        <article className="page-intro-card">
+          <div>
+            <span className="page-kicker">Payment flow</span>
+            <h1 className="page-intro-title flow-page-title">Thanh toán và đóng bàn</h1>
+          </div>
 
-        <div className="ops-kpis">
-          <article className="ops-kpi">
-            <span>Bàn chờ thanh toán</span>
-            <strong>{sessions.length}</strong>
-            <small>Chỉ tính các session đang có order open.</small>
-          </article>
+          <div className="page-mini-grid">
+            <article className="page-mini-card">
+              <span>Bàn chờ thanh toán</span>
+              <strong>{sessions.length}</strong>
+              <small>Chỉ tính các session đang có order open.</small>
+            </article>
 
-          <article className="ops-kpi">
-            <span>Doanh thu đang chờ</span>
-            <strong>{formatCurrency(pendingRevenue)}</strong>
-            <small>Tổng tạm tính của hàng đợi thanh toán.</small>
-          </article>
+            <article className="page-mini-card">
+              <span>Doanh thu đang chờ</span>
+              <strong>{formatCurrency(pendingRevenue)}</strong>
+              <small>Tổng tạm tính của hàng đợi thanh toán.</small>
+            </article>
 
-          <article className="ops-kpi">
-            <span>Hóa đơn đang xem</span>
-            <strong>{selectedOrder ? formatCurrency(selectedOrder.total_amount || 0) : formatCurrency(0)}</strong>
-            <small>Cập nhật theo bàn đang được chọn.</small>
-          </article>
-        </div>
+            <article className="page-mini-card">
+              <span>Hóa đơn đang xem</span>
+              <strong>{selectedOrder ? formatCurrency(selectedOrder.total_amount || 0) : formatCurrency(0)}</strong>
+              <small>Cập nhật theo bàn đang được chọn.</small>
+            </article>
+          </div>
+        </article>
+
+        <aside className="page-side-card">
+          <div className="page-side-list">
+            <article className="page-side-item">
+              <strong>Chọn bàn</strong>
+              <span>Lấy session có order đang mở từ hàng đợi thanh toán và chuyển sang đối chiếu hóa đơn.</span>
+            </article>
+
+            <article className="page-side-item">
+              <strong>Đối chiếu hóa đơn</strong>
+              <span>Kiểm tra tổng món, số lượng và giá trị order trước khi thu tiền tại quầy.</span>
+            </article>
+
+            <article className="page-side-item">
+              <strong>Xác nhận thanh toán</strong>
+              <span>Chọn phương thức thu tiền rồi đóng phiên phục vụ để giải phóng bàn.</span>
+            </article>
+          </div>
+        </aside>
       </div>
 
       {feedback.message ? (
@@ -282,7 +299,6 @@ function PaymentsPage() {
             <div className="table-toolbar">
               <div className="section-heading">
                 <h3>Bàn có order đang mở</h3>
-                <p>Danh sách này chỉ hiện các bàn có order đang ở trạng thái open.</p>
               </div>
 
               <div className="table-toolbar-meta align-end">
@@ -295,7 +311,6 @@ function PaymentsPage() {
 
             <div className="soft-banner">
               <strong>{sessions.length ? `${sessions.length} bàn đang chờ thanh toán` : "Hàng đợi thanh toán đang trống"}</strong>
-              <span>Có thể đổi session để đối chiếu hóa đơn ở panel bên phải.</span>
             </div>
 
             <div className="table-toolbar filter-toolbar queue-filter-toolbar">
@@ -353,11 +368,6 @@ function PaymentsPage() {
             </div>
 
             <div className="pagination-bar">
-              <div className="table-toolbar-meta">
-                <strong>Điều hướng trang</strong>
-                <span>Queue thanh toán giữ được độ gọn ngay cả khi nhiều bàn cùng chốt hóa đơn một lúc.</span>
-              </div>
-
               <div className="pagination-actions">
                 <button
                   type="button"
@@ -389,7 +399,6 @@ function PaymentsPage() {
               <>
                 <div className="section-heading">
                   <h3>Hóa đơn tạm tính</h3>
-                  <p>Kiểm tra lại danh sách món và chọn phương thức thanh toán.</p>
                 </div>
 
                 <div className="table-shell">
@@ -441,10 +450,9 @@ function PaymentsPage() {
 
                 <form className="row g-3" onSubmit={handlePayment}>
                   <div className="col-12">
-                    <div className="section-heading">
-                      <h3>Phương thức thanh toán</h3>
-                      <p>Chọn cách thu tiền phù hợp với giao dịch hiện tại.</p>
-                    </div>
+                  <div className="section-heading">
+                    <h3>Phương thức thanh toán</h3>
+                  </div>
 
                     <div className="method-grid">
                       {paymentMethods.map((method) => (

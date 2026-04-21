@@ -12,9 +12,6 @@ function MenuPage() {
           <div>
             <span className="page-kicker">Menu workspace</span>
             <h1 className="page-intro-title">Quản lý món ăn</h1>
-            <p className="page-intro-copy">
-              Đã nối CRUD đầy đủ cho món ăn. Staff chỉ xem và lọc, admin có thêm, sửa, xóa và cập nhật trạng thái.
-            </p>
           </div>
 
           <div className="page-mini-grid">
@@ -33,11 +30,6 @@ function MenuPage() {
         </article>
 
         <aside className="page-side-card">
-          <div>
-            <h3>Trọng tâm demo</h3>
-            <p>Màn này phù hợp để demo sự khác nhau giữa admin và staff trong một bảng dữ liệu lớn.</p>
-          </div>
-
           <div className="page-side-list">
             <article className="page-side-item">
               <strong>Admin</strong>

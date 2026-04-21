@@ -17,9 +17,19 @@ const initialTableFilters = {
 };
 
 const pageSizeOptions = [5, 10, 20];
+const tableStatusLabels = {
+  available: "Sẵn sàng phục vụ",
+  reserved: "Đã đặt trước",
+  occupied: "Đang phục vụ",
+  unavailable: "Không phục vụ"
+};
 
 function compareText(valueA = "", valueB = "") {
   return valueA.localeCompare(valueB, "vi", { sensitivity: "base" });
+}
+
+function getTableStatusLabel(status) {
+  return tableStatusLabels[status] || status || "--";
 }
 
 function TableManager({ canManage }) {
@@ -297,10 +307,10 @@ function TableManager({ canManage }) {
                 onChange={handleFilterChange}
               >
                 <option value="">Tất cả</option>
-                <option value="available">available</option>
-                <option value="reserved">reserved</option>
-                <option value="occupied">occupied</option>
-                <option value="unavailable">unavailable</option>
+                <option value="available">{getTableStatusLabel("available")}</option>
+                <option value="reserved">{getTableStatusLabel("reserved")}</option>
+                <option value="occupied">{getTableStatusLabel("occupied")}</option>
+                <option value="unavailable">{getTableStatusLabel("unavailable")}</option>
               </select>
             </div>
 
@@ -314,7 +324,6 @@ function TableManager({ canManage }) {
               <div className="table-toolbar filter-toolbar">
                 <div className="table-toolbar-meta">
                   <strong>{sortedTables.length} bàn ăn</strong>
-                  <span>Bảng dữ liệu đã có sắp xếp theo tên, sức chứa, trạng thái và chia trang để thao tác nhanh hơn.</span>
                 </div>
 
                 <div className="table-controls-inline">
@@ -355,7 +364,6 @@ function TableManager({ canManage }) {
           <div className="panel-card stack-card">
             <div className="section-heading">
               <h3>{editingTableId ? "Cập nhật bàn ăn" : "Thêm bàn ăn"}</h3>
-              <p>Admin có thể đổi sức chứa, trạng thái, mô tả và mở/khóa bàn ngay trên form này.</p>
             </div>
 
             <form className="row g-3" onSubmit={handleSubmit}>
@@ -391,10 +399,10 @@ function TableManager({ canManage }) {
                   value={formData.status}
                   onChange={handleFormChange}
                 >
-                  <option value="available">available</option>
-                  <option value="reserved">reserved</option>
-                  <option value="occupied">occupied</option>
-                  <option value="unavailable">unavailable</option>
+                  <option value="available">{getTableStatusLabel("available")}</option>
+                  <option value="reserved">{getTableStatusLabel("reserved")}</option>
+                  <option value="occupied">{getTableStatusLabel("occupied")}</option>
+                  <option value="unavailable">{getTableStatusLabel("unavailable")}</option>
                 </select>
               </div>
 
@@ -453,7 +461,6 @@ function TableManager({ canManage }) {
         <div className="table-toolbar">
           <div className="section-heading">
             <h3>Danh sách bàn ăn</h3>
-            <p>Bảng bàn ăn đã có chia trang và sắp xếp đồng bộ với các module quản trị khác.</p>
           </div>
 
           <div className="table-toolbar-meta align-end">
@@ -491,7 +498,7 @@ function TableManager({ canManage }) {
                       <td>{table.table_name}</td>
                       <td>{table.capacity} khách</td>
                       <td>
-                        <span className={`status-pill status-${table.status}`}>{table.status}</span>
+                        <span className={`status-pill status-${table.status}`}>{getTableStatusLabel(table.status)}</span>
                       </td>
                       <td>
                         <span className={`status-pill ${table.is_active ? "status-active" : "status-inactive"}`}>
@@ -531,11 +538,6 @@ function TableManager({ canManage }) {
         )}
 
         <div className="pagination-bar">
-          <div className="table-toolbar-meta">
-            <strong>Điều hướng trang</strong>
-            <span>Nếu số lượng bàn nhiều, bạn có thể giảm số dòng mỗi trang để thao tác và demo dễ hơn.</span>
-          </div>
-
           <div className="pagination-actions">
             <button
               type="button"

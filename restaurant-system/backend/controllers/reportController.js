@@ -26,12 +26,12 @@ function parseDateRange(req, res) {
   const endDate = String(req.query.end_date || defaults.endDate).trim();
 
   if (!isValidDateInput(startDate) || !isValidDateInput(endDate)) {
-    res.status(400).json({ message: "Khoang thoi gian thong ke khong hop le." });
+    res.status(400).json({ message: "Khoảng thời gian thống kê không hợp lệ." });
     return null;
   }
 
   if (startDate > endDate) {
-    res.status(400).json({ message: "Ngay bat dau khong duoc lon hon ngay ket thuc." });
+    res.status(400).json({ message: "Ngày bắt đầu không được lớn hơn ngày kết thúc." });
     return null;
   }
 

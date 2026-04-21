@@ -367,35 +367,52 @@ function ReservationsPage() {
 
   return (
     <section className="workspace-grid">
-      <div className="ops-hero">
-        <div className="ops-copy">
-          <span className="eyebrow">Reservation flow</span>
-          <h1>Đặt bàn và check-in</h1>
-          <p>
-            Giao diện này gồm 3 bước liền mạch: tìm bàn trống, chọn khách hàng, xác nhận phiếu đặt và check-in để
-            chuyển sang phiên phục vụ.
-          </p>
-        </div>
+      <div className="page-intro-grid">
+        <article className="page-intro-card">
+          <div>
+            <span className="page-kicker">Reservation flow</span>
+            <h1 className="page-intro-title reservations-page-title">Đặt bàn và check-in</h1>
+          </div>
 
-        <div className="ops-kpis">
-          <article className="ops-kpi">
-            <span>Phiếu chờ xử lý</span>
-            <strong>{pendingReservations}</strong>
-            <small>Đang ở trạng thái pending hoặc confirmed.</small>
-          </article>
+          <div className="page-mini-grid reservations-mini-grid">
+            <article className="page-mini-card reservations-mini-card">
+              <span>Phiếu chờ xử lý</span>
+              <strong>{pendingReservations}</strong>
+              <small>Đang ở trạng thái pending hoặc confirmed.</small>
+            </article>
 
-          <article className="ops-kpi">
-            <span>Đã check-in</span>
-            <strong>{checkedInReservations}</strong>
-            <small>Sẵn sàng chuyển sang gọi món.</small>
-          </article>
+            <article className="page-mini-card reservations-mini-card">
+              <span>Đã check-in</span>
+              <strong>{checkedInReservations}</strong>
+              <small>Sẵn sàng chuyển sang gọi món.</small>
+            </article>
 
-          <article className="ops-kpi">
-            <span>Lựa chọn bàn</span>
-            <strong>{tableOptionCount}</strong>
-            <small>Cập nhật sau mỗi lần tìm bàn trống.</small>
-          </article>
-        </div>
+            <article className="page-mini-card reservations-mini-card">
+              <span>Lựa chọn bàn</span>
+              <strong>{tableOptionCount}</strong>
+              <small>Cập nhật sau mỗi lần tìm bàn trống.</small>
+            </article>
+          </div>
+        </article>
+
+        <aside className="page-side-card">
+          <div className="page-side-list">
+            <article className="page-side-item">
+              <strong>Tìm bàn trống</strong>
+              <span>Nhập ngày, giờ và số khách để lấy danh sách bàn đơn hoặc tổ hợp bàn còn khả dụng.</span>
+            </article>
+
+            <article className="page-side-item">
+              <strong>Chọn khách hàng</strong>
+              <span>Tìm nhanh theo SĐT hoặc tạo khách mới ngay trên màn hình đặt bàn.</span>
+            </article>
+
+            <article className="page-side-item">
+              <strong>Xác nhận và check-in</strong>
+              <span>Chốt phiếu đặt rồi chuyển thẳng sang phiên phục vụ để tiếp tục gọi món.</span>
+            </article>
+          </div>
+        </aside>
       </div>
 
       {feedback.message ? (
@@ -961,11 +978,6 @@ function ReservationsPage() {
         )}
 
         <div className="pagination-bar">
-          <div className="table-toolbar-meta">
-            <strong>Điều hướng trang</strong>
-            <span>Danh sách đặt bàn sẽ gọn hơn khi bạn lọc theo ngày nhưng vẫn có thể mở rộng khi cần soát nhiều ca.</span>
-          </div>
-
           <div className="pagination-actions">
             <button
               type="button"

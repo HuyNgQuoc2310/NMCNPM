@@ -3,10 +3,25 @@ import { useAuth } from "../context/useAuth";
 import { apiFetch } from "../services/apiClient";
 import { formatCurrency, getTodayDateValue } from "../utils/formatters";
 
+const vietnameseDateFormatter = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric"
+});
+
 function getMonthStartValue() {
   const date = new Date();
   date.setDate(1);
   return date.toISOString().slice(0, 10);
+}
+
+function formatDateLabel(value) {
+  if (!value) {
+    return "--";
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? value : vietnameseDateFormatter.format(date);
 }
 
 function ReportsPage() {
@@ -89,6 +104,7 @@ function ReportsPage() {
   }, [reports.months]);
   const totalRevenue = reports.months.reduce((sum, month) => sum + Number(month.total_revenue || 0), 0);
   const totalSoldQuantity = reports.items.reduce((sum, item) => sum + Number(item.total_quantity || 0), 0);
+  const filledReportCount = [reports.items.length, reports.slots.length, reports.months.length].filter(Boolean).length;
 
   function handleRangeChange(event) {
     setRange((currentValue) => ({
@@ -119,10 +135,6 @@ function ReportsPage() {
           <div>
             <span className="page-kicker">Reports workspace</span>
             <h1 className="page-intro-title">Thống kê và báo cáo</h1>
-            <p className="page-intro-copy">
-              Một màn tổng hợp cho quản lý xem nhanh món ăn bán chạy, lượng khách theo khung giờ và doanh thu theo
-              tháng trong cùng một khoảng thời gian, không bị trải dài trên desktop.
-            </p>
           </div>
 
           <div className="page-mini-grid">
@@ -147,15 +159,10 @@ function ReportsPage() {
         </article>
 
         <aside className="page-side-card">
-          <div>
-            <h3>Trọng tâm demo</h3>
-            <p>Màn báo cáo này được tách thành các khối rõ vai trò để khi mở trên desktop không bị rỗng và hụt mắt.</p>
-          </div>
-
           <div className="page-side-list">
             <article className="page-side-item">
               <strong>Top món</strong>
-              <span>{topItem ? `${topItem.item_name} đang dẫn đầu theo doanh thu.` : "Chưa có món nào phát sinh."}</span>
+              <span>{topItem ? `${topItem.item_name} hot theo doanh thu.` : "Chưa có món nào phát sinh."}</span>
             </article>
 
             <article className="page-side-item">
@@ -185,90 +192,84 @@ function ReportsPage() {
         <article className={`flow-step${reports.items.length ? " active" : ""}`}>
           <span>Báo cáo 1</span>
           <strong>Món ăn bán chạy</strong>
-          <small>Xem tổng số lượng, doanh thu và số khách liên quan theo từng món.</small>
         </article>
 
         <article className={`flow-step${reports.slots.length ? " active" : ""}`}>
           <span>Báo cáo 2</span>
           <strong>Lượng khách theo giờ</strong>
-          <small>Xác định khung giờ có doanh thu cao và doanh thu trên mỗi khách.</small>
         </article>
 
         <article className={`flow-step${reports.months.length ? " active" : ""}`}>
           <span>Báo cáo 3</span>
           <strong>Doanh thu theo tháng</strong>
-          <small>Theo dõi tổng thu và giá trị trung bình theo từng tháng.</small>
         </article>
       </div>
 
       <div className="content-card stack-card">
-        <div className="filter-panel">
-          <div className="filter-panel-header">
+        <div className="filter-panel reports-filter-panel">
+          <div className="filter-panel-header reports-filter-header">
             <div className="section-heading">
               <h3>Khoảng thời gian thống kê</h3>
-              <p>Cả ba báo cáo dùng chung một khoảng ngày để đối chiếu và trình chiếu dễ hơn.</p>
+              <p>Chọn một kỳ báo cáo chung để đối chiếu ba nhóm số liệu trong cùng một lần xem.</p>
             </div>
 
-            <div className="table-toolbar-meta align-end">
-              <strong>Khoảng đang xem</strong>
-              <span>
-                {range.start_date} đến {range.end_date}
-              </span>
-            </div>
-          </div>
-
-          <div className="filter-chip-row">
-            <div className="filter-chip">
-              <span>Từ ngày</span>
-              <strong>{range.start_date}</strong>
-            </div>
-
-            <div className="filter-chip">
-              <span>Đến ngày</span>
-              <strong>{range.end_date}</strong>
-            </div>
-
-            <div className="filter-chip">
+            <div className="reports-filter-status">
               <span>Có dữ liệu</span>
-              <strong>{[reports.items.length, reports.slots.length, reports.months.length].filter(Boolean).length}/3 báo cáo</strong>
+              <strong>{filledReportCount}/3 báo cáo</strong>
             </div>
           </div>
 
-          <form className="filter-panel-grid" onSubmit={handleSubmit}>
-            <label className="filter-field filter-col-4">
-              <span>Ngày bắt đầu</span>
-              <input
-                type="date"
-                name="start_date"
-                className="form-control"
-                value={range.start_date}
-                onChange={handleRangeChange}
-                required
-              />
-            </label>
+          <div className="filter-chip-row reports-filter-chip-row">
+            <div className="filter-chip reports-filter-chip">
+              <span>Khoảng đang xem</span>
+              <strong>
+                {formatDateLabel(range.start_date)} - {formatDateLabel(range.end_date)}
+              </strong>
+            </div>
 
-            <label className="filter-field filter-col-4">
-              <span>Ngày kết thúc</span>
-              <input
-                type="date"
-                name="end_date"
-                className="form-control"
-                value={range.end_date}
-                onChange={handleRangeChange}
-                required
-              />
-            </label>
+            <div className="filter-chip reports-filter-chip">
+              <span>Trạng thái dữ liệu</span>
+              <strong>{filledReportCount === 3 ? "Đủ 3 báo cáo" : `${filledReportCount}/3 báo cáo có số liệu`}</strong>
+            </div>
+          </div>
 
-            <div className="filter-field filter-col-4">
-              <span>Hành động</span>
-              <div className="filter-action-stack">
-                <button type="submit" className="primary-button" disabled={loading}>
-                  {loading ? "Đang tải..." : "Thống kê"}
-                </button>
+          <form className="reports-filter-form" onSubmit={handleSubmit}>
+            <div className="reports-filter-bar">
+              <label className="filter-field reports-filter-field reports-filter-segment">
+                <span>Ngày bắt đầu</span>
+                <input
+                  type="date"
+                  name="start_date"
+                  className="form-control"
+                  value={range.start_date}
+                  onChange={handleRangeChange}
+                  required
+                />
+              </label>
 
-                <button type="button" className="ghost-button" onClick={resetRange} disabled={loading}>
-                  Mặc định
-                </button>
+              <label className="filter-field reports-filter-field reports-filter-segment">
+                <span>Ngày kết thúc</span>
+                <input
+                  type="date"
+                  name="end_date"
+                  className="form-control"
+                  value={range.end_date}
+                  onChange={handleRangeChange}
+                  required
+                />
+              </label>
+
+              <div className="filter-field reports-filter-field reports-filter-segment reports-filter-segment-actions">
+                <span>Hành động</span>
+                <div className="reports-filter-actions">
+                  <button type="submit" className="primary-button" disabled={loading}>
+                    {loading ? "Đang tải..." : "Thống kê"}
+                  </button>
+
+                  <button type="button" className="ghost-button" onClick={resetRange} disabled={loading}>
+                    Mặc định
+                  </button>
+                </div>
               </div>
             </div>
           </form>
@@ -295,12 +296,11 @@ function ReportsPage() {
         </div>
       </div>
 
-      <div className="content-card stack-card">
-        <div className="table-toolbar">
-          <div className="section-heading">
-            <h3>Thống kê món ăn bán chạy</h3>
-            <p>Danh sách được sắp xếp giảm dần theo tổng doanh thu để quản lý nhìn nhanh món chủ lực.</p>
-          </div>
+        <div className="content-card stack-card">
+          <div className="table-toolbar reports-table-toolbar">
+            <div className="section-heading">
+              <h3>Thống kê món ăn bán chạy</h3>
+            </div>
 
           <div className="table-toolbar-meta align-end">
             <strong>{reports.items.length} món có phát sinh</strong>
@@ -357,15 +357,14 @@ function ReportsPage() {
 
       <div className="report-split-grid">
         <div className="content-card stack-card">
-          <div className="table-toolbar">
+          <div className="table-toolbar reports-table-toolbar">
             <div className="section-heading">
               <h3>Thống kê lượng khách theo khung giờ</h3>
-              <p>Tìm khung giờ tạo doanh thu tốt nhất để bố trí nhân sự và chuẩn bị món hợp lý hơn.</p>
             </div>
 
             <div className="table-toolbar-meta align-end">
               <strong>{reports.slots.length} khung giờ</strong>
-              <span>{busiestSlot ? `${busiestSlot.time_slot} đang dẫn đầu` : "Chưa có dữ liệu."}</span>
+              <span>{busiestSlot ? `${busiestSlot.time_slot} hot` : "Chưa có dữ liệu."}</span>
             </div>
           </div>
 
@@ -411,10 +410,9 @@ function ReportsPage() {
         </div>
 
         <div className="content-card stack-card">
-          <div className="table-toolbar">
+          <div className="table-toolbar reports-table-toolbar">
             <div className="section-heading">
               <h3>Báo cáo doanh thu theo tháng</h3>
-              <p>Theo dõi tổng thu, số giao dịch và giá trị hóa đơn trung bình trên mỗi tháng.</p>
             </div>
 
             <div className="table-toolbar-meta align-end">

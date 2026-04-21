@@ -12,9 +12,6 @@ function TablesPage() {
           <div>
             <span className="page-kicker">Table workspace</span>
             <h1 className="page-intro-title">Quản lý bàn ăn</h1>
-            <p className="page-intro-copy">
-              Đã nối CRUD đầy đủ cho bàn ăn. Staff chỉ xem và lọc, admin có thêm, sửa, xóa, đổi sức chứa và trạng thái.
-            </p>
           </div>
 
           <div className="page-mini-grid">
@@ -33,11 +30,6 @@ function TablesPage() {
         </article>
 
         <aside className="page-side-card">
-          <div>
-            <h3>Trọng tâm demo</h3>
-            <p>Màn này nên demo cùng `Đặt bàn` để thấy được mối liên kết giữa sức chứa, trạng thái và vận hành.</p>
-          </div>
-
           <div className="page-side-list">
             <article className="page-side-item">
               <strong>Admin</strong>
