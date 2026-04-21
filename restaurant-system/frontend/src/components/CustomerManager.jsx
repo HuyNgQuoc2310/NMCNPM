@@ -3,6 +3,7 @@ import { useAuth } from "../context/useAuth";
 import useDebouncedValue from "../hooks/useDebouncedValue";
 import { apiFetch } from "../services/apiClient";
 import ModalShell from "./ModalShell";
+import { normalizeCustomerFieldValue, normalizeCustomerForm, validateCustomerForm } from "../utils/customerValidation";
 
 const initialCustomerForm = {
   full_name: "",
@@ -179,9 +180,11 @@ function CustomerManager() {
   }
 
   function handleFormChange(event) {
+    const { name, value } = event.target;
+
     setFormData((currentValue) => ({
       ...currentValue,
-      [event.target.name]: event.target.value
+      [name]: normalizeCustomerFieldValue(name, value)
     }));
   }
 
@@ -201,6 +204,14 @@ function CustomerManager() {
   async function handleSubmit(event) {
     event.preventDefault();
 
+    const normalizedPayload = normalizeCustomerForm(formData);
+    const validationMessage = validateCustomerForm(normalizedPayload);
+
+    if (validationMessage) {
+      setFeedback({ type: "error", message: validationMessage });
+      return;
+    }
+
     try {
       setSubmitting(true);
       setFeedback({ type: "", message: "" });
@@ -209,11 +220,11 @@ function CustomerManager() {
         method: editingCustomerId ? "PUT" : "POST",
         token,
         body: {
-          full_name: formData.full_name,
-          phone_number: formData.phone_number,
-          email: formData.email,
-          address: formData.address,
-          is_active: formData.is_active === "1"
+          full_name: normalizedPayload.full_name,
+          phone_number: normalizedPayload.phone_number,
+          email: normalizedPayload.email,
+          address: normalizedPayload.address,
+          is_active: normalizedPayload.is_active === "1"
         }
       });
 
@@ -454,18 +465,20 @@ function CustomerManager() {
                           {customer.is_active ? "active" : "inactive"}
                         </span>
                       </td>
-                      <td className="action-cell">
-                        <button type="button" className="ghost-button button-sm" onClick={() => startEditing(customer)}>
-                          Sửa
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost-button button-sm danger-button"
-                          onClick={() => handleDeleteRequest(customer)}
-                          disabled={deletingId === customer.customer_id}
-                        >
-                          {deletingId === customer.customer_id ? "Đang xóa..." : "Xóa"}
-                        </button>
+                      <td>
+                        <div className="table-action-row">
+                          <button type="button" className="ghost-button button-sm" onClick={() => startEditing(customer)}>
+                            Sửa
+                          </button>
+                          <button
+                            type="button"
+                            className="ghost-button button-sm danger-button"
+                            onClick={() => handleDeleteRequest(customer)}
+                            disabled={deletingId === customer.customer_id}
+                          >
+                            {deletingId === customer.customer_id ? "Đang xóa..." : "Xóa"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -540,14 +553,19 @@ function CustomerManager() {
 
             <div className="col-md-6">
               <input
-                type="text"
+                type="tel"
                 name="phone_number"
                 className="form-control"
-                placeholder="Số điện thoại"
+                placeholder="09xxxxxxxx"
                 value={formData.phone_number}
                 onChange={handleFormChange}
+                inputMode="numeric"
+                maxLength="10"
+                pattern="0[0-9]{9}"
+                title="Số điện thoại phải gồm đúng 10 số và bắt đầu bằng 0."
                 required
               />
+              <div className="table-subtext">SĐT phải gồm đúng 10 số Việt Nam và bắt đầu bằng 0.</div>
             </div>
 
             <div className="col-md-6">
@@ -555,10 +573,13 @@ function CustomerManager() {
                 type="email"
                 name="email"
                 className="form-control"
-                placeholder="Email"
+                placeholder="ten@gmail.com"
                 value={formData.email}
                 onChange={handleFormChange}
+                pattern="[A-Za-z0-9._%+-]+@gmail\.com"
+                title="Email phải có dạng ten@gmail.com."
               />
+              <div className="table-subtext">Chỉ nhận email theo định dạng Gmail, ví dụ `ten@gmail.com`.</div>
             </div>
 
             <div className="col-md-6">

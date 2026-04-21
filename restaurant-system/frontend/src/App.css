@@ -1286,6 +1286,15 @@
   gap: 8px;
 }
 
+.table-action-row,
+.employee-action-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
 .table-row-active td {
   background: rgba(176, 61, 43, 0.05);
 }
@@ -1304,6 +1313,27 @@
   background: linear-gradient(180deg, rgba(250, 243, 237, 0.92) 0%, rgba(255, 251, 246, 0.92) 100%);
   align-items: center;
   flex-wrap: wrap;
+}
+
+.queue-filter-toolbar,
+.session-filter-toolbar {
+  padding: 20px 22px;
+  align-items: stretch;
+  gap: 18px;
+  min-height: 132px;
+}
+
+.queue-filter-toolbar .table-toolbar-meta,
+.session-filter-toolbar .table-toolbar-meta {
+  flex: 1 1 320px;
+  align-content: center;
+}
+
+.queue-filter-toolbar .table-controls-inline,
+.session-filter-toolbar .table-controls-inline {
+  flex: 1 1 430px;
+  min-height: 92px;
+  align-items: flex-end;
 }
 
 .table-toolbar-meta {

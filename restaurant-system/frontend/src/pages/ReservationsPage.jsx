@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiFetch } from "../services/apiClient";
+import { normalizeCustomerFieldValue, normalizeCustomerForm, validateCustomerForm } from "../utils/customerValidation";
 import { getCurrentTimeValue, getTodayDateValue } from "../utils/formatters";
 
 const initialCustomerForm = {
@@ -244,14 +245,24 @@ function ReservationsPage() {
   }
 
   function handleCustomerFormChange(event) {
+    const { name, value } = event.target;
+
     setCustomerForm((currentValue) => ({
       ...currentValue,
-      [event.target.name]: event.target.value
+      [name]: normalizeCustomerFieldValue(name, value)
     }));
   }
 
   async function handleCreateCustomer(event) {
     event.preventDefault();
+
+    const normalizedPayload = normalizeCustomerForm(customerForm);
+    const validationMessage = validateCustomerForm(normalizedPayload);
+
+    if (validationMessage) {
+      setFeedback({ type: "error", message: validationMessage });
+      return;
+    }
 
     try {
       setCreatingCustomer(true);
@@ -259,16 +270,16 @@ function ReservationsPage() {
       const response = await apiFetch("/customers", {
         method: "POST",
         token,
-        body: customerForm
+        body: normalizedPayload
       });
 
       const customer = {
         customer_id: response.customerId,
         customer_code: response.customerCode,
-        full_name: customerForm.full_name,
-        phone_number: customerForm.phone_number,
-        email: customerForm.email,
-        address: customerForm.address
+        full_name: normalizedPayload.full_name,
+        phone_number: normalizedPayload.phone_number,
+        email: normalizedPayload.email,
+        address: normalizedPayload.address
       };
 
       setSelectedCustomer(customer);
@@ -622,12 +633,16 @@ function ReservationsPage() {
               <label className="filter-field filter-col-6">
                 <span>Số điện thoại</span>
                 <input
-                  type="text"
+                  type="tel"
                   name="phone_number"
                   className="form-control"
-                  placeholder="Nhập số điện thoại"
+                  placeholder="09xxxxxxxx"
                   value={customerForm.phone_number}
                   onChange={handleCustomerFormChange}
+                  inputMode="numeric"
+                  maxLength="10"
+                  pattern="0[0-9]{9}"
+                  title="Số điện thoại phải gồm đúng 10 số và bắt đầu bằng 0."
                   required
                 />
               </label>
@@ -638,9 +653,11 @@ function ReservationsPage() {
                   type="email"
                   name="email"
                   className="form-control"
-                  placeholder="Nhập email nếu có"
+                  placeholder="ten@gmail.com"
                   value={customerForm.email}
                   onChange={handleCustomerFormChange}
+                  pattern="[A-Za-z0-9._%+-]+@gmail\.com"
+                  title="Email phải có dạng ten@gmail.com."
                 />
               </label>
 

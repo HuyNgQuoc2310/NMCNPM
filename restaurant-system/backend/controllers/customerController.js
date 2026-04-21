@@ -3,15 +3,36 @@ const generateCode = require("../utils/generateCode");
 const handleDbError = require("../utils/handleDbError");
 const parseBoolean = require("../utils/parseBoolean");
 
+const VIETNAM_PHONE_REGEX = /^0\d{9}$/;
+const GMAIL_REGEX = /^[A-Za-z0-9._%+-]+@gmail\.com$/i;
+
 function normalizeCustomerPayload(body = {}) {
+  const normalizedEmail = String(body.email || "").trim().toLowerCase();
+
   return {
     customerCode: String(body.customer_code || "").trim(),
     fullName: String(body.full_name || "").trim(),
-    phoneNumber: String(body.phone_number || "").trim(),
-    email: String(body.email || "").trim() || null,
+    phoneNumber: String(body.phone_number || "").replace(/\D/g, "").slice(0, 10),
+    email: normalizedEmail || null,
     address: String(body.address || "").trim() || null,
     isActive: parseBoolean(body.is_active, true) ? 1 : 0
   };
+}
+
+function validateCustomerPayload(payload) {
+  if (!payload.fullName || !payload.phoneNumber) {
+    return "Tên và số điện thoại khách hàng là bắt buộc.";
+  }
+
+  if (!VIETNAM_PHONE_REGEX.test(payload.phoneNumber)) {
+    return "Số điện thoại phải gồm đúng 10 số Việt Nam và bắt đầu bằng 0.";
+  }
+
+  if (payload.email && !GMAIL_REGEX.test(payload.email)) {
+    return "Email khách hàng phải có dạng ten@gmail.com.";
+  }
+
+  return null;
 }
 
 exports.getAllCustomers = async (req, res) => {
@@ -73,9 +94,10 @@ exports.getCustomerById = async (req, res) => {
 
 exports.addCustomer = async (req, res) => {
   const payload = normalizeCustomerPayload(req.body);
+  const validationMessage = validateCustomerPayload(payload);
 
-  if (!payload.fullName || !payload.phoneNumber) {
-    return res.status(400).json({ message: "Tên và số điện thoại khách hàng là bắt buộc." });
+  if (validationMessage) {
+    return res.status(400).json({ message: validationMessage });
   }
 
   try {
@@ -111,9 +133,10 @@ exports.addCustomer = async (req, res) => {
 
 exports.updateCustomer = async (req, res) => {
   const payload = normalizeCustomerPayload(req.body);
+  const validationMessage = validateCustomerPayload(payload);
 
-  if (!payload.fullName || !payload.phoneNumber) {
-    return res.status(400).json({ message: "Tên và số điện thoại khách hàng là bắt buộc." });
+  if (validationMessage) {
+    return res.status(400).json({ message: validationMessage });
   }
 
   try {

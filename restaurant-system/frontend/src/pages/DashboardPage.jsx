@@ -38,9 +38,47 @@ const statsByRole = {
   ]
 };
 
+const modulesByRole = {
+  admin: [
+    {
+      label: "Vận hành",
+      title: "Đặt bàn và phục vụ",
+      description: "Theo dõi luồng nhận đặt bàn, check-in, gọi món và thanh toán ngay trên cùng hệ thống."
+    },
+    {
+      label: "Quản trị",
+      title: "Dữ liệu gốc",
+      description: "Quản lý món ăn, bàn ăn, khách hàng và tài khoản nhân viên theo quyền admin."
+    },
+    {
+      label: "Báo cáo",
+      title: "Phân tích doanh thu",
+      description: "Xem món bán chạy, lượng khách theo khung giờ và doanh thu theo tháng để chốt demo."
+    }
+  ],
+  staff: [
+    {
+      label: "Đặt bàn",
+      title: "Tiếp nhận khách",
+      description: "Tìm bàn trống, chọn khách hàng và xác nhận phiếu đặt nhanh cho ca phục vụ."
+    },
+    {
+      label: "Phục vụ",
+      title: "Mở phiên và gọi món",
+      description: "Check-in khách, mở phiên phục vụ, tạo order và thêm món ngay theo từng bàn."
+    },
+    {
+      label: "Thanh toán",
+      title: "Chốt hóa đơn",
+      description: "Theo dõi các session đang mở và xử lý thanh toán nhanh theo bàn hoặc khách."
+    }
+  ]
+};
+
 function DashboardPage() {
   const { role, user } = useAuth();
   const stats = statsByRole[role] || statsByRole.staff;
+  const modules = modulesByRole[role] || modulesByRole.staff;
 
   return (
     <section className="page-shell">
@@ -49,6 +87,10 @@ function DashboardPage() {
           <div>
             <span className="page-kicker">Workspace</span>
             <h1 className="page-intro-title">Xin chào {user?.full_name || user?.username}.</h1>
+            <p className="page-intro-copy">
+              Đây là khu tổng hợp nhanh để nhìn ngay quyền hiện tại, trạng thái đăng nhập và những module quan trọng nhất
+              trong ca làm việc.
+            </p>
           </div>
 
           <div className="page-mini-grid">
@@ -65,7 +107,8 @@ function DashboardPage() {
         <aside className="page-side-card">
           <div>
             <h3>Khu tổng hợp</h3>
-            </div>
+            <p>Màn này nên đóng vai trò bảng điều hướng ngắn gọn, không lặp lại dữ liệu nhưng vẫn đủ đầy trên desktop.</p>
+          </div>
 
           <div className="page-side-list">
             <article className="page-side-item">
@@ -87,10 +130,10 @@ function DashboardPage() {
       </div>
 
       <div className="module-grid">
-        {stats.map((item) => (
-          <article className="stat-card module-card" key={item.label}>
+        {modules.map((item) => (
+          <article className="stat-card module-card" key={item.title}>
             <span>{item.label}</span>
-            <strong>{item.value}</strong>
+            <strong>{item.title}</strong>
             <p>{item.description}</p>
           </article>
         ))}

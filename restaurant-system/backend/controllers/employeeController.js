@@ -5,20 +5,49 @@ const handleDbError = require("../utils/handleDbError");
 const parseBoolean = require("../utils/parseBoolean");
 
 const allowedRoles = ["admin", "staff"];
+const VIETNAM_PHONE_REGEX = /^0\d{9}$/;
+const GMAIL_REGEX = /^[A-Za-z0-9._%+-]+@gmail\.com$/i;
 
 function normalizeEmployeePayload(body = {}) {
+  const normalizedEmail = String(body.email || "").trim().toLowerCase();
+  const normalizedPhoneNumber = String(body.phone_number || "").replace(/\D/g, "").slice(0, 10);
+
   return {
     employeeCode: String(body.employee_code || "").trim(),
     username: String(body.username || "").trim(),
     password: String(body.password || ""),
     fullName: String(body.full_name || "").trim(),
-    email: String(body.email || "").trim() || null,
-    phoneNumber: String(body.phone_number || "").trim() || null,
+    email: normalizedEmail || null,
+    phoneNumber: normalizedPhoneNumber || null,
     position: String(body.position || "").trim(),
     role: String(body.role || "staff").trim().toLowerCase(),
     address: String(body.address || "").trim() || null,
     isActive: parseBoolean(body.is_active, true) ? 1 : 0
   };
+}
+
+function validateEmployeePayload(payload, options = {}) {
+  const { requirePassword = false } = options;
+
+  if (!payload.username || !payload.fullName || !payload.position || (requirePassword && !payload.password)) {
+    return requirePassword
+      ? "Username, password, tên và chức vụ nhân viên là bắt buộc."
+      : "Username, tên và chức vụ nhân viên là bắt buộc.";
+  }
+
+  if (payload.phoneNumber && !VIETNAM_PHONE_REGEX.test(payload.phoneNumber)) {
+    return "Số điện thoại nhân viên phải gồm đúng 10 số Việt Nam và bắt đầu bằng 0.";
+  }
+
+  if (payload.email && !GMAIL_REGEX.test(payload.email)) {
+    return "Email nhân viên phải có dạng ten@gmail.com.";
+  }
+
+  if (!allowedRoles.includes(payload.role)) {
+    return "Chức vụ nhân viên không hợp lệ.";
+  }
+
+  return null;
 }
 
 function buildEmployeeResponse(employee) {
@@ -104,15 +133,10 @@ exports.getEmployeeById = async (req, res) => {
 
 exports.addEmployee = async (req, res) => {
   const payload = normalizeEmployeePayload(req.body);
+  const validationMessage = validateEmployeePayload(payload, { requirePassword: true });
 
-  if (!payload.username || !payload.password || !payload.fullName || !payload.position) {
-    return res.status(400).json({
-      message: "Username, password, tên và chức vụ nhân viên là bắt buộc."
-    });
-  }
-
-  if (!allowedRoles.includes(payload.role)) {
-    return res.status(400).json({ message: "Chức vụ nhân viên không hợp lệ." });
+  if (validationMessage) {
+    return res.status(400).json({ message: validationMessage });
   }
 
   try {
@@ -156,19 +180,14 @@ exports.addEmployee = async (req, res) => {
 exports.updateEmployee = async (req, res) => {
   const payload = normalizeEmployeePayload(req.body);
   const employeeId = Number(req.params.id);
+  const validationMessage = validateEmployeePayload(payload);
 
   if (!Number.isInteger(employeeId) || employeeId <= 0) {
     return res.status(400).json({ message: "Mã nhân viên không hợp lệ." });
   }
 
-  if (!payload.username || !payload.fullName || !payload.position) {
-    return res.status(400).json({
-      message: "Username, tên và chức vụ nhân viên là bắt buộc."
-    });
-  }
-
-  if (!allowedRoles.includes(payload.role)) {
-    return res.status(400).json({ message: "Chức vụ nhân viên không hợp lệ." });
+  if (validationMessage) {
+    return res.status(400).json({ message: validationMessage });
   }
 
   if (req.user?.employeeId === employeeId) {
@@ -256,7 +275,7 @@ exports.deleteEmployee = async (req, res) => {
     res.json({ message: "Xóa nhân viên thành công." });
   } catch (error) {
     handleDbError(res, error, {
-      referenced: "Nhân viên đang được tham chiếu trong đặt bàn, order hoặc ca làm, không thể xóa."
+      referenced: "Nhân viên đang trong đặt bàn, order hoặc ca làm, không thể xóa."
     });
   }
 };

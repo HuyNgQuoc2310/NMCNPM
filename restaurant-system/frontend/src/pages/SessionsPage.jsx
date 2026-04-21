@@ -505,7 +505,7 @@ function SessionsPage() {
             </div>
           </div>
 
-          <div className="table-toolbar filter-toolbar">
+          <div className="table-toolbar filter-toolbar session-filter-toolbar">
             <div className="table-toolbar-meta">
               <strong>{sortedSessions.length} phiên đang mở</strong>
               <span>Sắp xếp theo bàn, khách, số khách hoặc tạm tính để chọn session cần thao tác nhanh hơn.</span>
@@ -769,23 +769,25 @@ function SessionsPage() {
                                   />
                                 </td>
                                 <td>{formatCurrency(item.line_total)}</td>
-                                <td className="action-cell">
-                                  <button
-                                    type="button"
-                                    className="ghost-button button-sm"
-                                    onClick={() => handleUpdateOrderItem(item.order_item_id)}
-                                    disabled={processingItemId === item.order_item_id}
-                                  >
-                                    Lưu
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="ghost-button button-sm danger-button"
-                                    onClick={() => handleDeleteOrderItem(item.order_item_id)}
-                                    disabled={processingItemId === item.order_item_id}
-                                  >
-                                    Xóa
-                                  </button>
+                                <td>
+                                  <div className="table-action-row">
+                                    <button
+                                      type="button"
+                                      className="ghost-button button-sm"
+                                      onClick={() => handleUpdateOrderItem(item.order_item_id)}
+                                      disabled={processingItemId === item.order_item_id}
+                                    >
+                                      Lưu
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ghost-button button-sm danger-button"
+                                      onClick={() => handleDeleteOrderItem(item.order_item_id)}
+                                      disabled={processingItemId === item.order_item_id}
+                                    >
+                                      Xóa
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))

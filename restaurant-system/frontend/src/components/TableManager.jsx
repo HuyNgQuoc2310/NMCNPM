@@ -500,18 +500,20 @@ function TableManager({ canManage }) {
                       </td>
                       <td>{table.description || "--"}</td>
                       {canManage ? (
-                        <td className="action-cell">
-                          <button type="button" className="ghost-button button-sm" onClick={() => startEditing(table)}>
-                            Sửa
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost-button button-sm danger-button"
-                            onClick={() => handleDelete(table)}
-                            disabled={deletingId === table.table_id}
-                          >
-                            {deletingId === table.table_id ? "Đang xóa..." : "Xóa"}
-                          </button>
+                        <td>
+                          <div className="table-action-row">
+                            <button type="button" className="ghost-button button-sm" onClick={() => startEditing(table)}>
+                              Sửa
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost-button button-sm danger-button"
+                              onClick={() => handleDelete(table)}
+                              disabled={deletingId === table.table_id}
+                            >
+                              {deletingId === table.table_id ? "Đang xóa..." : "Xóa"}
+                            </button>
+                          </div>
                         </td>
                       ) : null}
                     </tr>

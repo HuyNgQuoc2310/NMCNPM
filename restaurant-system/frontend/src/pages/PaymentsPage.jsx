@@ -298,7 +298,7 @@ function PaymentsPage() {
               <span>Có thể đổi session để đối chiếu hóa đơn ở panel bên phải.</span>
             </div>
 
-            <div className="table-toolbar filter-toolbar">
+            <div className="table-toolbar filter-toolbar queue-filter-toolbar">
               <div className="table-toolbar-meta">
                 <strong>{sortedQueueSessions.length} session chờ thanh toán</strong>
                 <span>Sắp xếp theo giá trị hóa đơn, bàn, khách hàng và chia trang cho hàng đợi cao điểm.</span>

@@ -31,7 +31,8 @@ function EmployeesPage() {
         <aside className="page-side-card">
           <div>
             <h3>Trung tâm</h3>
-            </div>
+            <p>Màn này cần gọn nhưng chắc, vì đây là nơi admin thao tác với tài khoản và quyền hạn nhạy cảm nhất.</p>
+          </div>
 
           <div className="page-side-list">
             <article className="page-side-item">

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import useDebouncedValue from "../hooks/useDebouncedValue";
 import { apiFetch } from "../services/apiClient";
+import { isValidGmail, isValidVietnamPhone, normalizeContactFieldValue } from "../utils/contactValidation";
 import ModalShell from "./ModalShell";
 
 const initialEmployeeForm = {
@@ -23,9 +24,47 @@ const initialFilters = {
 };
 
 const pageSizeOptions = [5, 10, 20];
+const roleLabels = {
+  admin: "Quản trị",
+  staff: "Nhân viên"
+};
 
 function compareText(valueA = "", valueB = "") {
   return valueA.localeCompare(valueB, "vi", { sensitivity: "base" });
+}
+
+function normalizeEmployeeForm(formData = {}) {
+  return {
+    ...formData,
+    username: String(formData.username || "").trim(),
+    full_name: String(formData.full_name || "").trim(),
+    email: String(normalizeContactFieldValue("email", formData.email)).trim(),
+    phone_number: String(normalizeContactFieldValue("phone_number", formData.phone_number)).trim(),
+    position: String(formData.position || "").trim(),
+    address: String(formData.address || "").trim()
+  };
+}
+
+function validateEmployeeForm(formData = {}, isEditing = false) {
+  const normalizedValue = normalizeEmployeeForm(formData);
+
+  if (!normalizedValue.username || !normalizedValue.full_name || !normalizedValue.position) {
+    return "Username, tên và chức vụ nhân viên là bắt buộc.";
+  }
+
+  if (!isEditing && !String(formData.password || "")) {
+    return "Mật khẩu nhân viên là bắt buộc khi tạo mới.";
+  }
+
+  if (normalizedValue.phone_number && !isValidVietnamPhone(normalizedValue.phone_number)) {
+    return "Số điện thoại nhân viên phải gồm đúng 10 số Việt Nam và bắt đầu bằng 0.";
+  }
+
+  if (normalizedValue.email && !isValidGmail(normalizedValue.email)) {
+    return "Email nhân viên phải có dạng ten@gmail.com.";
+  }
+
+  return null;
 }
 
 function EmployeeManager() {
@@ -49,6 +88,7 @@ function EmployeeManager() {
   const adminCount = employees.filter((employee) => employee.role === "admin").length;
   const staffCount = employees.filter((employee) => employee.role === "staff").length;
   const activeCount = employees.filter((employee) => employee.is_active).length;
+  const inactiveCount = employees.length - activeCount;
   const isDebouncingKeyword = filters.keyword !== debouncedKeyword;
 
   const appliedFilters = useMemo(() => ({
@@ -192,9 +232,11 @@ function EmployeeManager() {
   }
 
   function handleFormChange(event) {
+    const { name, value } = event.target;
+
     setFormData((currentValue) => ({
       ...currentValue,
-      [event.target.name]: event.target.value
+      [name]: ["email", "phone_number"].includes(name) ? normalizeContactFieldValue(name, value) : value
     }));
   }
 
@@ -218,6 +260,14 @@ function EmployeeManager() {
   async function handleSubmit(event) {
     event.preventDefault();
 
+    const normalizedPayload = normalizeEmployeeForm(formData);
+    const validationMessage = validateEmployeeForm(normalizedPayload, Boolean(editingEmployeeId));
+
+    if (validationMessage) {
+      setFeedback({ type: "error", message: validationMessage });
+      return;
+    }
+
     try {
       setSubmitting(true);
       setFeedback({ type: "", message: "" });
@@ -226,14 +276,14 @@ function EmployeeManager() {
         method: editingEmployeeId ? "PUT" : "POST",
         token,
         body: {
-          username: formData.username,
+          username: normalizedPayload.username,
           password: formData.password,
-          full_name: formData.full_name,
-          email: formData.email,
-          phone_number: formData.phone_number,
-          position: formData.position,
+          full_name: normalizedPayload.full_name,
+          email: normalizedPayload.email,
+          phone_number: normalizedPayload.phone_number,
+          position: normalizedPayload.position,
           role: formData.role,
-          address: formData.address,
+          address: normalizedPayload.address,
           is_active: formData.is_active === "1"
         }
       });
@@ -299,12 +349,12 @@ function EmployeeManager() {
         </div>
       ) : null}
 
-      <div className="app-grid-2">
+      <div className="workspace-grid">
         <div className="content-card stack-card">
           <div className="toolbar-inline">
             <div className="section-heading">
               <h3>Bộ lọc nhân viên</h3>
-              <p>Tìm theo mã, username, tên, chức vụ.</p>
+              <p>Tìm theo mã, username, tên, chức vụ và lọc nhanh theo vai trò hoặc trạng thái tài khoản.</p>
             </div>
 
             <div className="toolbar-actions">
@@ -346,9 +396,9 @@ function EmployeeManager() {
                 value={filters.role}
                 onChange={handleFilterChange}
               >
-                <option value="">Chức vụ</option>
-                <option value="admin">admin</option>
-                <option value="staff">staff</option>
+                <option value="">Tất cả vai trò</option>
+                <option value="admin">Quản trị</option>
+                <option value="staff">Nhân viên</option>
               </select>
             </div>
 
@@ -365,7 +415,7 @@ function EmployeeManager() {
               </select>
             </div>
 
-            <div className="col-md-2 d-grid">
+            <div className="col-md-auto d-grid">
               <button type="submit" className="ghost-button">
                 Làm mới ngay
               </button>
@@ -417,9 +467,23 @@ function EmployeeManager() {
         <div className="content-card stack-card">
           <div className="section-heading">
             <h3>Trạng thái</h3>
-            </div>
+            <p>Nhìn nhanh cơ cấu tài khoản để kiểm tra phân quyền và tình trạng sử dụng của nhân sự trong hệ thống.</p>
+          </div>
+
+          <div className="soft-banner">
+            <strong>{employees.length} tài khoản nhân viên</strong>
+            <span>
+              {activeCount} đang hoạt động và {inactiveCount} đã khóa. Có thể đối chiếu nhanh trước khi cập nhật role
+              hoặc cấp lại quyền truy cập.
+            </span>
+          </div>
 
           <div className="micro-stats">
+            <div className="micro-stat">
+              <span>Tổng tài khoản</span>
+              <strong>{employees.length}</strong>
+            </div>
+
             <div className="micro-stat">
               <span>Admin</span>
               <strong>{adminCount}</strong>
@@ -433,6 +497,11 @@ function EmployeeManager() {
             <div className="micro-stat">
               <span>Đang hoạt động</span>
               <strong>{activeCount}</strong>
+            </div>
+
+            <div className="micro-stat">
+              <span>Đã khóa</span>
+              <strong>{inactiveCount}</strong>
             </div>
           </div>
         </div>
@@ -468,7 +537,7 @@ function EmployeeManager() {
                   <th>Chức vụ</th>
                   <th>Role</th>
                   <th>Trạng thái</th>
-                  <th></th>
+                  <th>Hành động</th>
                 </tr>
               </thead>
 
@@ -494,27 +563,29 @@ function EmployeeManager() {
                         <td>{employee.position}</td>
                         <td>
                           <span className={`status-pill ${employee.role === "admin" ? "status-admin" : "status-staff"}`}>
-                            {employee.role}
+                            {roleLabels[employee.role] || employee.role}
                           </span>
                         </td>
                         <td>
                           <span className={`status-pill ${employee.is_active ? "status-active" : "status-inactive"}`}>
-                            {employee.is_active ? "active" : "inactive"}
+                            {employee.is_active ? "Hoạt động" : "Đã khóa"}
                           </span>
                         </td>
-                        <td className="action-cell">
-                          <button type="button" className="ghost-button button-sm" onClick={() => startEditing(employee)}>
-                            Sửa
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost-button button-sm danger-button"
-                            onClick={() => handleDeleteRequest(employee)}
-                            disabled={isCurrentUser || deletingId === employee.employee_id}
-                            title={isCurrentUser ? "Không thể xóa chính mình." : "Xóa nhân viên"}
-                          >
-                            {deletingId === employee.employee_id ? "Đang xóa..." : "Xóa"}
-                          </button>
+                        <td>
+                          <div className="employee-action-row">
+                            <button type="button" className="ghost-button button-sm" onClick={() => startEditing(employee)}>
+                              Sửa
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost-button button-sm danger-button"
+                              onClick={() => handleDeleteRequest(employee)}
+                              disabled={isCurrentUser || deletingId === employee.employee_id}
+                              title={isCurrentUser ? "Không thể xóa chính mình." : "Xóa nhân viên"}
+                            >
+                              {deletingId === employee.employee_id ? "Đang xóa..." : "Xóa"}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -635,21 +706,29 @@ function EmployeeManager() {
                 type="email"
                 name="email"
                 className="form-control"
-                placeholder="Email"
+                placeholder="ten@gmail.com"
                 value={formData.email}
                 onChange={handleFormChange}
+                pattern="[A-Za-z0-9._%+-]+@gmail\.com"
+                title="Email phải có dạng ten@gmail.com."
               />
+              <div className="table-subtext">Nếu nhập email, chỉ nhận định dạng Gmail như `ten@gmail.com`.</div>
             </div>
 
             <div className="col-md-6">
               <input
-                type="text"
+                type="tel"
                 name="phone_number"
                 className="form-control"
-                placeholder="Số điện thoại"
+                placeholder="09xxxxxxxx"
                 value={formData.phone_number}
                 onChange={handleFormChange}
+                inputMode="numeric"
+                maxLength="10"
+                pattern="0[0-9]{9}"
+                title="Số điện thoại phải gồm đúng 10 số và bắt đầu bằng 0."
               />
+              <div className="table-subtext">Nếu nhập SĐT, phải gồm đúng 10 số Việt Nam và bắt đầu bằng 0.</div>
             </div>
 
             <div className="col-md-4">
@@ -660,8 +739,8 @@ function EmployeeManager() {
                 onChange={handleFormChange}
                 disabled={isEditingSelf}
               >
-                <option value="staff">staff</option>
-                <option value="admin">admin</option>
+                <option value="staff">Nhân viên</option>
+                <option value="admin">Quản trị</option>
               </select>
             </div>
 

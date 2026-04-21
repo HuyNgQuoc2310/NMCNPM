@@ -530,18 +530,20 @@ function MenuManager({ canManage }) {
                       </td>
                       <td>{item.description || "--"}</td>
                       {canManage ? (
-                        <td className="action-cell">
-                          <button type="button" className="ghost-button button-sm" onClick={() => startEditing(item)}>
-                            Sửa
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost-button button-sm danger-button"
-                            onClick={() => handleDelete(item)}
-                            disabled={deletingId === item.item_id}
-                          >
-                            {deletingId === item.item_id ? "Đang xóa..." : "Xóa"}
-                          </button>
+                        <td>
+                          <div className="table-action-row">
+                            <button type="button" className="ghost-button button-sm" onClick={() => startEditing(item)}>
+                              Sửa
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost-button button-sm danger-button"
+                              onClick={() => handleDelete(item)}
+                              disabled={deletingId === item.item_id}
+                            >
+                              {deletingId === item.item_id ? "Đang xóa..." : "Xóa"}
+                            </button>
+                          </div>
                         </td>
                       ) : null}
                     </tr>
