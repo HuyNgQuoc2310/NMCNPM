@@ -14,6 +14,9 @@ import ReportsPage from "./pages/ReportsPage";
 import ReservationsPage from "./pages/ReservationsPage";
 import SessionsPage from "./pages/SessionsPage";
 import TablesPage from "./pages/TablesPage";
+import BestSellingItemsReportPage from "./pages/reports/BestSellingItemsReportPage";
+import HourlyGuestReportPage from "./pages/reports/HourlyGuestReportPage";
+import MonthlyRevenueReportPage from "./pages/reports/MonthlyRevenueReportPage";
 
 function ProtectedLayout() {
   return (
@@ -56,16 +59,19 @@ function App() {
 
       <Route element={<ProtectedLayout />}>
         <Route index element={<DashboardPage />} />
-        <Route path="/menu" element={<MenuPage />} />
-        <Route path="/tables" element={<TablesPage />} />
-        <Route path="/customers" element={<CustomersPage />} />
         <Route path="/reservations" element={<ReservationsPage />} />
         <Route path="/sessions" element={<SessionsPage />} />
         <Route path="/payments" element={<PaymentsPage />} />
 
         <Route element={<AdminOnlyRoute />}>
+          <Route path="/menu" element={<MenuPage />} />
+          <Route path="/tables" element={<TablesPage />} />
+          <Route path="/customers" element={<CustomersPage />} />
           <Route path="/employees" element={<EmployeesPage />} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/reports/best-selling-items" element={<BestSellingItemsReportPage />} />
+          <Route path="/reports/hourly-guests" element={<HourlyGuestReportPage />} />
+          <Route path="/reports/monthly-revenue" element={<MonthlyRevenueReportPage />} />
         </Route>
       </Route>
 

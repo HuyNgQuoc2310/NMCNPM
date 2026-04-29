@@ -13,19 +13,19 @@ const navigationItems = [
     to: "/menu",
     label: "Món ăn",
     description: "Danh sách và quản lý menu.",
-    roles: ["admin", "staff"]
+    roles: ["admin"]
   },
   {
     to: "/tables",
     label: "Bàn ăn",
     description: "Sức chứa, trạng thái và bố trí bàn.",
-    roles: ["admin", "staff"]
+    roles: ["admin"]
   },
   {
     to: "/customers",
     label: "Khách hàng",
     description: "Thông tin khách hàng phục vụ đặt bàn.",
-    roles: ["admin", "staff"]
+    roles: ["admin"]
   },
   {
     to: "/reservations",
@@ -46,9 +46,21 @@ const navigationItems = [
     roles: ["admin", "staff"]
   },
   {
-    to: "/reports",
-    label: "Báo cáo",
-    description: "Thống kê món ăn, khung giờ và doanh thu.",
+    to: "/reports/best-selling-items",
+    label: "Món ăn bán chạy",
+    description: "Xếp hạng món theo số lượng bán và doanh thu.",
+    roles: ["admin"]
+  },
+  {
+    to: "/reports/hourly-guests",
+    label: "Khách theo khung giờ",
+    description: "Lượng khách, doanh thu và doanh thu đầu khách.",
+    roles: ["admin"]
+  },
+  {
+    to: "/reports/monthly-revenue",
+    label: "Doanh thu theo tháng",
+    description: "Theo dõi tổng thu và giao dịch theo từng tháng.",
     roles: ["admin"]
   },
   {

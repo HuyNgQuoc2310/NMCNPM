@@ -763,6 +763,12 @@
   line-height: 1.5;
 }
 
+.flow-step-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
 .stack-card {
   display: grid;
   gap: 18px;
